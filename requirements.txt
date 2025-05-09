@@ -1,0 +1,10 @@
+matplotlib
+pandas
+numpy
+scipy
+cartopy
+contextily
+geopandas
+pyproj
+shapely
+tabulate

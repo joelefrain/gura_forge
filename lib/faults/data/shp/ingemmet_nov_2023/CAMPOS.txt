@@ -1,0 +1,24 @@
+OBJECTID: Identificador del elemento
+COD_GEOCAT: Código en GEOCATMIN
+COD_SARA: Código en el proyecto SARA
+SIMB_T_EST: Código de simbología o leyenda
+
+NOMBRE: Nombre de la estructura
+TIPO_ESTRU: Tipo de estructura
+CINEMATICA: Cinemática de la estructura
+SISTEMA_FA: Sistema de fallas al que pertenece la estructura
+RUMBO: Rumbo de la estructura
+BUZAMIENTO: Buzamiento de la estructura
+DIR_BUZ: Dirección de buzamiento de la estructura
+TASA_MOV: Tasa de movimiento
+EDAD_ULT_M: Edad del último movimiento
+CONFIABILI: Confiabilidad
+SINOPSIS: Es la sinopsis de la estructura
+MORFOLOGIA: Morfología relacionada a la estructura
+ESTUDIOS_A: Estudios anteriores
+COMPILADOR: Quien ha compilado la información
+ORGANIZACI: Organización que ha compilado la información
+E-MAIL: e-mail del compilador
+FECHA_COMP: Fecha de compilación
+FECHA_MODI: Fecha de actualización
+REFERENCIA: Referencia

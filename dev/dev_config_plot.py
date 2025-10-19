@@ -5,7 +5,6 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 
 from datetime import datetime, timedelta
@@ -26,10 +25,7 @@ def test_timeseries():
 
     # NUEVO USO: Configurar y registrar en una línea
     config = PlotConfig(
-        plot_type=PlotType.TIMESERIES,
-        dates=dates,
-        n_xticks=5,
-        scale=1.0
+        plot_type=PlotType.TIMESERIES, dates=dates, n_xticks=5, scale=1.0
     )
 
     # Crea el gráfico
@@ -46,7 +42,7 @@ def test_timeseries():
     ax.legend()  # Solo crear la leyenda, se aplica automáticamente
 
     # Se aplica todo automáticamente al guardar
-    plt.savefig("test/outputs/test_timeseries.png", dpi=150, bbox_inches="tight")
+    plt.savefig("dev/outputs/test_timeseries.png", dpi=150, bbox_inches="tight")
     plt.close()
     print("✓ Guardado: test_timeseries.png")
 
@@ -74,7 +70,7 @@ def test_timeseries_legend_variations():
             plot_type=PlotType.TIMESERIES,
             dates=dates,
             n_xticks=5,
-            legend_position=legend_pos
+            legend_position=legend_pos,
         )
 
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -90,7 +86,7 @@ def test_timeseries_legend_variations():
 
         # Auto-aplicación al guardar
         plt.savefig(
-            f"test/outputs/test_timeseries_{filename_suffix}.png",
+            f"dev/outputs/test_timeseries_{filename_suffix}.png",
             dpi=150,
             bbox_inches="tight",
         )
@@ -103,10 +99,7 @@ def test_map():
     print("\nGenerando gráfico de mapa...")
 
     # NUEVO USO: Configuración simple
-    config = PlotConfig(
-        plot_type=PlotType.MAP,
-        scale=1.0
-    )
+    config = PlotConfig(plot_type=PlotType.MAP, scale=1.0)
 
     # Genera datos de ejemplo (mapa simple con regiones)
     fig, ax = plt.subplots(figsize=(10, 8))
@@ -166,7 +159,7 @@ def test_map():
     cbar = plt.colorbar(scatter, ax=ax)
     cbar.set_label("Intensidad")
 
-    plt.savefig("test/outputs/test_map_default.png", dpi=150, bbox_inches="tight")
+    plt.savefig("dev/outputs/test_map_default.png", dpi=150, bbox_inches="tight")
     plt.close()
     print("✓ Guardado: test_map_default.png")
 
@@ -176,9 +169,7 @@ def test_map_legend_inside():
     print("Generando gráfico de mapa con leyenda dentro...")
 
     config = PlotConfig(
-        plot_type=PlotType.MAP,
-        legend_position=LegendPosition.UPPER_LEFT,
-        scale=1.0
+        plot_type=PlotType.MAP, legend_position=LegendPosition.UPPER_LEFT, scale=1.0
     )
 
     # Genera datos de ejemplo
@@ -218,7 +209,7 @@ def test_map_legend_inside():
     ax.set_title("Mapa con Leyenda Dentro")
     ax.legend()
 
-    plt.savefig("test/outputs/test_map_legend_inside.png", dpi=150, bbox_inches="tight")
+    plt.savefig("dev/outputs/test_map_legend_inside.png", dpi=150, bbox_inches="tight")
     plt.close()
     print("✓ Guardado: test_map_legend_inside.png")
 
@@ -233,7 +224,7 @@ def test_map_with_ticks():
         n_xticks=6,
         n_yticks=6,
         legend_position=LegendPosition.OUTSIDE_RIGHT,
-        scale=1.0
+        scale=1.0,
     )
 
     # Genera datos de ejemplo simulando coordenadas geográficas
@@ -262,35 +253,35 @@ def test_map_with_ticks():
     lon_grid = np.linspace(-80, -70, 50)
     lat_grid = np.linspace(-15, -5, 50)
     LON, LAT = np.meshgrid(lon_grid, lat_grid)
-    TEMP = 22 + 3 * np.sin(LON/5) * np.cos(LAT/3)
+    TEMP = 22 + 3 * np.sin(LON / 5) * np.cos(LAT / 3)
 
     contours = ax.contour(
-        LON, LAT, TEMP, 
-        levels=8, 
-        colors="black", 
-        alpha=0.4, 
-        linewidths=1.5
+        LON, LAT, TEMP, levels=8, colors="black", alpha=0.4, linewidths=1.5
     )
-    ax.clabel(contours, inline=True, fontsize=9, fmt='%.1f°C')
+    ax.clabel(contours, inline=True, fontsize=9, fmt="%.1f°C")
 
     # Añade regiones de interés
     from matplotlib.patches import Rectangle
-    
+
     rect1 = Rectangle(
-        (-78, -12), 3, 3, 
-        linewidth=2.5, 
-        edgecolor="red", 
-        facecolor="none", 
-        label="Zona A"
+        (-78, -12),
+        3,
+        3,
+        linewidth=2.5,
+        edgecolor="red",
+        facecolor="none",
+        label="Zona A",
     )
     rect2 = Rectangle(
-        (-74, -8), 2, 2.5, 
-        linewidth=2.5, 
-        edgecolor="green", 
-        facecolor="none", 
-        label="Zona B"
+        (-74, -8),
+        2,
+        2.5,
+        linewidth=2.5,
+        edgecolor="green",
+        facecolor="none",
+        label="Zona B",
     )
-    
+
     ax.add_patch(rect1)
     ax.add_patch(rect2)
 
@@ -304,9 +295,9 @@ def test_map_with_ticks():
     cbar.set_label("Temperatura (°C)")
 
     # Añade grilla para mejor legibilidad
-    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
+    ax.grid(True, alpha=0.3, linestyle="--", linewidth=0.5)
 
-    plt.savefig("test/outputs/test_map_with_ticks.png", dpi=150, bbox_inches="tight")
+    plt.savefig("dev/outputs/test_map_with_ticks.png", dpi=150, bbox_inches="tight")
     plt.close()
     print("✓ Guardado: test_map_with_ticks.png")
 
@@ -321,7 +312,7 @@ def test_standard():
         n_xticks=6,
         n_yticks=8,
         rotate_yticks=90,  # Rotación automática
-        scale=1.0
+        scale=1.0,
     )
 
     # Genera datos de ejemplo
@@ -349,7 +340,7 @@ def test_standard():
     ax.legend()
 
     # Todo se aplica automáticamente al guardar
-    plt.savefig("test/outputs/test_standard.png", dpi=150, bbox_inches="tight")
+    plt.savefig("dev/outputs/test_standard.png", dpi=150, bbox_inches="tight")
     plt.close()
     print("✓ Guardado: test_standard.png")
 
@@ -367,7 +358,7 @@ def test_standard_variations():
             n_xticks=5,
             n_yticks=6,
             rotate_yticks=90,
-            scale=scale
+            scale=scale,
         )
 
         x = np.linspace(0, 5, 50)
@@ -385,7 +376,7 @@ def test_standard_variations():
         ax.legend()
 
         plt.savefig(
-            f"test/outputs/test_standard_scale_{scale}.png",
+            f"dev/outputs/test_standard_scale_{scale}.png",
             dpi=150,
             bbox_inches="tight",
         )
@@ -400,12 +391,8 @@ def test_subplots():
     # Configuración para series temporales
     start_date = datetime(2024, 1, 1)
     dates = [start_date + timedelta(days=i) for i in range(90)]
-    
-    config_ts = PlotConfig(
-        plot_type=PlotType.TIMESERIES,
-        dates=dates,
-        n_xticks=4
-    )
+
+    config_ts = PlotConfig(plot_type=PlotType.TIMESERIES, dates=dates, n_xticks=4)
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle(
@@ -447,7 +434,7 @@ def test_subplots():
     plt.colorbar(im, ax=axes[1, 1])
 
     plt.tight_layout()
-    plt.savefig("test/outputs/test_subplots.png", dpi=150, bbox_inches="tight")
+    plt.savefig("dev/outputs/test_subplots.png", dpi=150, bbox_inches="tight")
     plt.close()
     print("✓ Guardado: test_subplots.png")
 
@@ -465,21 +452,29 @@ def test_context_manager():
         plot_type=PlotType.TIMESERIES,
         dates=dates,
         n_xticks=5,
-        legend_position=LegendPosition.OUTSIDE_RIGHT
+        legend_position=LegendPosition.OUTSIDE_RIGHT,
     ) as config:
         fig, ax = plt.subplots(figsize=(10, 6))
         config.register(ax)
 
         ax.plot(dates, values, linewidth=2, color="darkblue", label="Serie Principal")
-        ax.plot(dates, values * 1.1, linewidth=1.5, color="lightblue", 
-                linestyle="--", label="Serie +10%")
+        ax.plot(
+            dates,
+            values * 1.1,
+            linewidth=1.5,
+            color="lightblue",
+            linestyle="--",
+            label="Serie +10%",
+        )
 
         ax.set_title("Ejemplo con Context Manager")
         ax.set_xlabel("Fecha")
         ax.set_ylabel("Valor")
         ax.legend()
 
-        plt.savefig("test/outputs/test_context_manager.png", dpi=150, bbox_inches="tight")
+        plt.savefig(
+            "dev/outputs/test_context_manager.png", dpi=150, bbox_inches="tight"
+        )
         plt.close()
         print("✓ Guardado: test_context_manager.png")
 
@@ -498,7 +493,7 @@ def test_setup_plot_function():
         n_xticks=7,
         n_yticks=6,
         legend_position=LegendPosition.LOWER_LEFT,
-        rotate_yticks=0  # Sin rotación
+        rotate_yticks=0,  # Sin rotación
     )
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -506,15 +501,15 @@ def test_setup_plot_function():
 
     ax.plot(x, y1, label="sin(x)", linewidth=2)
     ax.plot(x, y2, label="cos(x)", linewidth=2)
-    ax.axhline(y=0, color='k', linestyle='-', linewidth=0.5, alpha=0.3)
-    ax.axvline(x=np.pi, color='k', linestyle='-', linewidth=0.5, alpha=0.3)
+    ax.axhline(y=0, color="k", linestyle="-", linewidth=0.5, alpha=0.3)
+    ax.axvline(x=np.pi, color="k", linestyle="-", linewidth=0.5, alpha=0.3)
 
     ax.set_title("Funciones Trigonométricas")
     ax.set_xlabel("x (radianes)")
     ax.set_ylabel("y")
     ax.legend()
 
-    plt.savefig("test/outputs/test_setup_function.png", dpi=150, bbox_inches="tight")
+    plt.savefig("dev/outputs/test_setup_function.png", dpi=150, bbox_inches="tight")
     plt.close()
     print("✓ Guardado: test_setup_function.png")
 
@@ -522,7 +517,6 @@ def test_setup_plot_function():
 def main():
     print("=" * 60)
     print("INICIANDO PRUEBAS DE CONFIGURACIÓN DE GRÁFICOS")
-    print("Sistema de Auto-Aplicación Activado")
     print("=" * 60)
 
     # Pruebas de series temporales
@@ -544,37 +538,6 @@ def main():
     # Pruebas de nuevas características
     test_context_manager()
     test_setup_plot_function()
-
-    print("\n" + "=" * 60)
-    print("TODAS LAS PRUEBAS COMPLETADAS EXITOSAMENTE")
-    print("=" * 60)
-    print("\nArchivos generados:")
-    print("  - test_timeseries.png")
-    print("  - test_timeseries_upper_left.png")
-    print("  - test_timeseries_lower_right.png")
-    print("  - test_timeseries_outside_right.png")
-    print("  - test_timeseries_outside_top.png")
-    print("  - test_map_default.png")
-    print("  - test_map_legend_inside.png")
-    print("  - test_map_with_ticks.png")
-    print("  - test_standard.png")
-    print("  - test_standard_scale_0.8.png")
-    print("  - test_standard_scale_1.0.png")
-    print("  - test_standard_scale_1.2.png")
-    print("  - test_subplots.png")
-    print("  - test_context_manager.png")
-    print("  - test_setup_function.png")
-    
-    print("\n" + "=" * 60)
-    print("CARACTERÍSTICAS IMPLEMENTADAS:")
-    print("=" * 60)
-    print("✓ Auto-aplicación de configuración al guardar/mostrar")
-    print("✓ Registro simple con config.register(ax)")
-    print("✓ Todos los parámetros en __init__")
-    print("✓ Soporte para context manager")
-    print("✓ Función de conveniencia setup_plot()")
-    print("✓ Prioridades: Ticks → Rotaciones → Leyendas")
-    print("✓ Sin necesidad de llamadas manuales a métodos")
 
 
 if __name__ == "__main__":

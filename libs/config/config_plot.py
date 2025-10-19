@@ -1,8 +1,12 @@
-import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
 import functools
+
+import matplotlib.pyplot as plt
+
+from matplotlib.axes import Axes
 from typing import Optional, List
+
 from libs.config.config_variables import DEFAULT_FONT, DATE_FORMAT
+
 from libs.config.config_logger import get_logger
 
 logger = get_logger()
@@ -74,7 +78,7 @@ class PlotConfig:
         n_xticks: int = 5,
         n_yticks: int = 5,
         ymargin: float = 0.20,
-        scale: float = 1.0,
+        fmt_scale: float = 1.0,
         legend_position: Optional[str] = None,
         rotate_yticks: Optional[float] = None,
         rotate_xticks: Optional[float] = None,
@@ -94,7 +98,7 @@ class PlotConfig:
             Número de ticks en el eje y (por defecto: 5)
         ymargin : float
             Margen para el eje y (por defecto: 0.20)
-        scale : float
+        fmt_scale : float
             Factor de escala para tamaños (por defecto: 1.0)
         legend_position : str, optional
             Posición de la leyenda. Si es None, usa valores por defecto según plot_type
@@ -108,7 +112,7 @@ class PlotConfig:
         self.n_xticks = n_xticks
         self.n_yticks = n_yticks
         self.ymargin = ymargin
-        self.scale = scale
+        self.fmt_scale = fmt_scale
         self.rotate_yticks = rotate_yticks
         self.rotate_xticks = rotate_xticks
 
@@ -150,7 +154,7 @@ class PlotConfig:
         plt.rcParams["axes.formatter.use_locale"] = True
         plt.rcParams["backend"] = "Agg"
         plt.rcParams["font.family"] = DEFAULT_FONT
-        plt.rcParams["font.size"] = int(8 * self.scale)
+        plt.rcParams["font.size"] = int(8 * self.fmt_scale)
 
         # Configuración de figura
         plt.rcParams["figure.constrained_layout.use"] = True
@@ -160,7 +164,7 @@ class PlotConfig:
         plt.rcParams["figure.constrained_layout.wspace"] = 0
         plt.rcParams["figure.edgecolor"] = "None"
         plt.rcParams["figure.facecolor"] = "None"
-        plt.rcParams["figure.titlesize"] = int(10 * self.scale)
+        plt.rcParams["figure.titlesize"] = int(10 * self.fmt_scale)
         plt.rcParams["figure.titleweight"] = "bold"
         plt.rcParams["figure.autolayout"] = True
 
@@ -174,9 +178,9 @@ class PlotConfig:
         plt.rcParams["axes.spines.right"] = True
         plt.rcParams["axes.spines.top"] = True
         plt.rcParams["axes.titleweight"] = "bold"
-        plt.rcParams["axes.titlesize"] = int(10 * self.scale)
-        plt.rcParams["axes.labelsize"] = int(9 * self.scale)
-        plt.rcParams["axes.titlepad"] = int(4 * self.scale)
+        plt.rcParams["axes.titlesize"] = int(10 * self.fmt_scale)
+        plt.rcParams["axes.labelsize"] = int(9 * self.fmt_scale)
+        plt.rcParams["axes.titlepad"] = int(4 * self.fmt_scale)
         plt.rcParams["axes.titlelocation"] = "center"
 
         # Configuración por defecto de ticks (visibles)
@@ -186,11 +190,11 @@ class PlotConfig:
         plt.rcParams["ytick.left"] = True
         plt.rcParams["xtick.top"] = False
         plt.rcParams["ytick.right"] = False
-        plt.rcParams["ytick.labelsize"] = int(8 * self.scale)
-        plt.rcParams["xtick.labelsize"] = int(8 * self.scale)
+        plt.rcParams["ytick.labelsize"] = int(8 * self.fmt_scale)
+        plt.rcParams["xtick.labelsize"] = int(8 * self.fmt_scale)
 
         # Configuración de leyenda
-        plt.rcParams["legend.fontsize"] = int(8 * self.scale)
+        plt.rcParams["legend.fontsize"] = int(8 * self.fmt_scale)
         plt.rcParams["legend.facecolor"] = "white"
         plt.rcParams["legend.framealpha"] = 0.15
         plt.rcParams["legend.edgecolor"] = "None"
@@ -200,7 +204,7 @@ class PlotConfig:
         plt.rcParams["grid.alpha"] = 0.25
         plt.rcParams["grid.color"] = "gray"
         plt.rcParams["grid.linestyle"] = "-"
-        plt.rcParams["grid.linewidth"] = 0.05 * self.scale
+        plt.rcParams["grid.linewidth"] = 0.05 * self.fmt_scale
         plt.rcParams["text.color"] = "black"
 
         # Aplica configuraciones específicas según el tipo
@@ -223,8 +227,8 @@ class PlotConfig:
         plt.rcParams["date.autoformatter.day"] = DATE_FORMAT
         plt.rcParams["date.autoformatter.month"] = DATE_FORMAT
         plt.rcParams["date.autoformatter.year"] = DATE_FORMAT
-        plt.rcParams["xtick.major.size"] = 4 * self.scale
-        plt.rcParams["ytick.major.size"] = 4 * self.scale
+        plt.rcParams["xtick.major.size"] = 4 * self.fmt_scale
+        plt.rcParams["ytick.major.size"] = 4 * self.fmt_scale
         plt.rcParams["xtick.direction"] = "out"
         plt.rcParams["ytick.direction"] = "out"
 
@@ -249,10 +253,10 @@ class PlotConfig:
         plt.rcParams["ytick.labelleft"] = True
         plt.rcParams["xtick.bottom"] = True
         plt.rcParams["ytick.left"] = True
-        plt.rcParams["xtick.major.size"] = 4 * self.scale
-        plt.rcParams["ytick.major.size"] = 4 * self.scale
-        plt.rcParams["xtick.minor.size"] = 2 * self.scale
-        plt.rcParams["ytick.minor.size"] = 2 * self.scale
+        plt.rcParams["xtick.major.size"] = 4 * self.fmt_scale
+        plt.rcParams["ytick.major.size"] = 4 * self.fmt_scale
+        plt.rcParams["xtick.minor.size"] = 2 * self.fmt_scale
+        plt.rcParams["ytick.minor.size"] = 2 * self.fmt_scale
         plt.rcParams["xtick.direction"] = "out"
         plt.rcParams["ytick.direction"] = "out"
 
@@ -283,7 +287,7 @@ class PlotConfig:
         else:
             return {"loc": position}
 
-    def register(self, ax: Axes) -> Axes:
+    def register(self, ax: Axes, apply_to_secondary: bool = True) -> Axes:
         """
         Registra un eje para auto-aplicación de configuración.
 
@@ -291,6 +295,9 @@ class PlotConfig:
         ----------
         ax : matplotlib.axes.Axes
             El eje a registrar
+        apply_to_secondary : bool
+            Si True, también aplica configuración a ejes secundarios (twinx/twiny)
+            Por defecto True para mantener consistencia visual
 
         Retorna
         -------
@@ -298,7 +305,11 @@ class PlotConfig:
             El mismo eje (para encadenamiento)
         """
         ax_id = id(ax)
-        PlotConfig._active_configs[ax_id] = self
+        PlotConfig._active_configs[ax_id] = {
+            "config": self,
+            "apply_to_secondary": apply_to_secondary,
+            "is_primary": True,  # Marca este como eje primario
+        }
         return ax
 
     def apply(self, ax: Axes):
@@ -312,52 +323,93 @@ class PlotConfig:
         """
         self._apply_to_axis(ax)
 
-    def _apply_to_axis(self, ax: Axes):
+    def _apply_to_axis(self, ax: Axes, is_secondary: bool = False):
         """
         Aplica todas las configuraciones a un eje específico.
         Prioridades:
         1. Ticks (más fundamental)
         2. Rotaciones de etiquetas
         3. Leyenda (más superficial)
+
+        Parámetros
+        ----------
+        ax : matplotlib.axes.Axes
+            El eje donde aplicar la configuración
+        is_secondary : bool
+            Si True, es un eje secundario (twinx/twiny) y se aplica configuración limitada
         """
         # Prioridad 1: Configurar ticks según el tipo de gráfico
-        if self.plot_type == PlotType.TIMESERIES and self.dates is not None:
-            self._set_timeseries_ticks(ax, self.dates, self.n_xticks)
-        elif self.plot_type == PlotType.STANDARD:
-            self._set_standard_ticks(ax, self.n_xticks, self.n_yticks)
-        # MAP no necesita configuración de ticks adicional
+        # Para ejes secundarios, no modificamos los ticks X (compartidos con el primario)
+        if not is_secondary:
+            if self.plot_type == PlotType.TIMESERIES and self.dates is not None:
+                self._set_timeseries_ticks(ax, self.dates, self.n_xticks)
+            elif self.plot_type == PlotType.STANDARD:
+                self._set_standard_ticks(ax, self.n_xticks, self.n_yticks)
+            # MAP no necesita configuración de ticks adicional
+
+        # Para ejes secundarios (twinx), configurar solo ticks Y
+        if is_secondary and self.plot_type == PlotType.STANDARD:
+            from matplotlib.ticker import MaxNLocator
+
+            ax.yaxis.set_major_locator(MaxNLocator(nbins=self.n_yticks))
 
         # Prioridad 2: Aplicar rotaciones de etiquetas
         if self.rotate_yticks is not None:
             ax.tick_params(axis="y", rotation=self.rotate_yticks)
 
-        if self.rotate_xticks is not None:
+        # Solo aplicar rotación X en eje primario
+        if self.rotate_xticks is not None and not is_secondary:
             ax.tick_params(axis="x", rotation=self.rotate_xticks)
 
         # Prioridad 3: Configurar leyenda si existe
-        legend = ax.get_legend()
-        if legend is not None:
-            ax.legend(**self._legend_config)
+        # Solo en el eje primario para evitar duplicados
+        if not is_secondary:
+            legend = ax.get_legend()
+            if legend is not None:
+                ax.legend(**self._legend_config)
 
     def _set_timeseries_ticks(self, ax: Axes, dates: List, n_ticks: int):
-        """Establece ticks para gráficos de series temporales."""
+        """
+        Establece ticks para gráficos de series temporales.
+        Garantiza que el primer y último valor siempre estén incluidos.
+        """
         if len(dates) == 0:
             return
 
-        indices = [
-            int(i) for i in range(0, len(dates), max(1, len(dates) // (n_ticks - 1)))
-        ]
+        if len(dates) == 1:
+            ax.set_xticks([dates[0]])
+            ax.set_xlim(dates[0], dates[0])
+            return
 
-        if 0 not in indices:
-            indices = [0] + indices
+        # Si tenemos menos puntos que ticks solicitados, usar todos los puntos
+        if len(dates) <= n_ticks:
+            ax.set_xticks(dates)
+            ax.set_xlim(dates[0], dates[-1])
+            return
+
+        # Calcular índices distribuidos uniformemente
+        # Asegurar que siempre incluimos primero y último
+        step = (len(dates) - 1) / (n_ticks - 1)
+        indices = [0]  # Primer elemento
+
+        # Elementos intermedios
+        for i in range(1, n_ticks - 1):
+            idx = int(round(i * step))
+            # Evitar duplicados
+            if idx != indices[-1] and idx < len(dates) - 1:
+                indices.append(idx)
+
+        # Último elemento (siempre)
         if len(dates) - 1 not in indices:
             indices.append(len(dates) - 1)
 
+        # Asegurar que no excedemos n_ticks
         if len(indices) > n_ticks:
-            step = len(indices) // (n_ticks - 1)
-            indices = [indices[0]] + indices[step:-step:step] + [indices[-1]]
+            # Mantener primero y último, distribuir el resto
+            indices = [0] + indices[1:-1:2] + [len(dates) - 1]
             indices = sorted(list(set(indices)))[:n_ticks]
 
+        # Establecer los ticks
         ax.set_xticks([dates[i] for i in indices])
         ax.set_xlim(dates[0], dates[-1])
 
@@ -382,6 +434,11 @@ class PlotConfig:
         @functools.wraps(cls._original_savefig)
         def savefig_wrapper(*args, **kwargs):
             cls._apply_all_configs()
+
+            # Aplicar guardado ajustado automáticamente
+            kwargs.setdefault("bbox_inches", "tight")
+            kwargs.setdefault("pad_inches", 0)
+
             return cls._original_savefig(*args, **kwargs)
 
         # Define wrapper para show
@@ -400,13 +457,28 @@ class PlotConfig:
     @classmethod
     def _apply_all_configs(cls):
         """Aplica todas las configuraciones registradas antes de guardar/mostrar."""
-        for ax_id, config in list(cls._active_configs.items()):
+        for ax_id, config_data in list(cls._active_configs.items()):
+            config = config_data["config"]
+            apply_to_secondary = config_data["apply_to_secondary"]
+
             # Busca el eje correspondiente en todas las figuras
             for fig_num in plt.get_fignums():
                 fig = plt.figure(fig_num)
                 for ax in fig.get_axes():
                     if id(ax) == ax_id:
-                        config._apply_to_axis(ax)
+                        # Aplica configuración al eje primario
+                        config._apply_to_axis(ax, is_secondary=False)
+
+                        # Si tiene ejes secundarios (twinx/twiny), aplícales configuración limitada
+                        if apply_to_secondary:
+                            # Busca ejes secundarios compartiendo el mismo patch
+                            for other_ax in fig.get_axes():
+                                if (
+                                    other_ax is not ax
+                                    and other_ax.bbox.bounds == ax.bbox.bounds
+                                ):
+                                    # Es un eje secundario (twinx o twiny)
+                                    config._apply_to_axis(other_ax, is_secondary=True)
                         break
 
     @classmethod

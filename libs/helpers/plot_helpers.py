@@ -1,12 +1,16 @@
+import math
 import ezdxf
 
 import matplotlib.patheffects as path_effects
 
-from itertools import cycle
 from matplotlib import colormaps
 from matplotlib.colors import rgb2hex
 
+from itertools import cycle
+from shapely.geometry import Polygon
+
 from libs.helpers.text_helpers import read_json
+
 from libs.config.config_variables import (
     DXF_COLORS_PATH,
     DXF_LINETYPES_PATH,
@@ -14,10 +18,58 @@ from libs.config.config_variables import (
 )
 
 
+def create_circle(center, radius, num_points=100):
+    """
+    Crea un círculo como una aproximación con num_points vértices.
+    """
+
+    lon, lat = center
+    points = [
+        (
+            lon
+            + (radius / 111)
+            * math.cos(2 * math.pi * i / num_points),  # km a grados (aprox)
+            lat
+            + (radius / 111)
+            * math.sin(2 * math.pi * i / num_points),  # km a grados (aprox)
+        )
+        for i in range(num_points)
+    ]
+    return Polygon(points)
+
+
+def calc_rect(latitude, longitude, side_length=400):
+    """
+    Calcula los límites de un área rectangular en grados basado en un mapa cuadrado de lado dado en kilómetros.
+
+    Args:
+        latitude (float): Latitud central en grados.
+        longitude (float): Longitud central en grados.
+        side_length (float): Lado del cuadrado del mapa en kilómetros. Por defecto, 400 km.
+
+    Returns:
+        list: Extensión [min_longitude, max_longitude, min_latitude, max_latitude].
+    """
+    # 1 grado de latitud ≈ 111 km
+    lat_per_degree = 111  # km
+    lon_per_degree = 111 * math.cos(math.radians(latitude))  # km
+
+    # Calcular la mitad del lado en kilómetros
+    half_side_km = side_length / 2
+
+    # Calcular los límites en grados
+    min_longitude = longitude - (half_side_km / lon_per_degree)
+    max_longitude = longitude + (half_side_km / lon_per_degree)
+    min_latitude = latitude - (half_side_km / lat_per_degree)
+    max_latitude = latitude + (half_side_km / lat_per_degree)
+
+    # Retornar el array 'extent'
+    return [min_longitude, max_longitude, min_latitude, max_latitude]
+
+
 def get_unique_marker_convo(df_index, total_dfs, color_palette="viridis"):
     """
-    Generate a unique combination of color and marker for a given dataframe index.
-    Ensures consistency across series.
+    Genera una combinación única de marcadores y colores
     """
 
     # Generate random colors from the colormap

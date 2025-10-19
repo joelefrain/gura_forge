@@ -4,7 +4,7 @@ import pandas as pd
 from pathlib import Path
 from dataclasses import dataclass
 
-from libs.config.config_variables import SEP_FORMAT
+from libs.config.config_variables import SEP_TABLE_FORMAT
 
 
 def read_df_on_time_from_csv(
@@ -40,7 +40,7 @@ def read_df_on_time_from_csv(
 
 def read_df_from_csv(path: Path) -> pd.DataFrame:
     # Leer CSV desde una ruta
-    df = pd.read_csv(path, sep=SEP_FORMAT)
+    df = pd.read_csv(path, sep=SEP_TABLE_FORMAT)
     return df
 
 
@@ -61,7 +61,7 @@ def save_df_to_csv(df: pd.DataFrame, file_path: str) -> None:
         df: DataFrame a guardar
         file_path: Ruta donde guardar el archivo CSV
     """
-    df.to_csv(file_path, index=False, sep=SEP_FORMAT)
+    df.to_csv(file_path, index=False, sep=SEP_TABLE_FORMAT)
 
 
 def append_params_as_column(df, **kwargs):

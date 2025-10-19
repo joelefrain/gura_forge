@@ -8,7 +8,6 @@ from libs.config.config_variables import (
     DATABASE_PATH,
     SCHEMA_SQL_PATH,
     STORAGE_DIR,
-    INSTRUMENTS_TYPES_SCHEMA,
 )
 
 from libs.config.config_logger import get_logger
@@ -100,59 +99,3 @@ def create_database():
 
     elapsed = time.time() - start_time
     logger.info(f"Proceso completado en {elapsed:.2f} segundos.")
-
-
-def create_instruments_type():
-    """
-    Inserta registros predefinidos en la tabla instrument_type,
-    incluyendo claves de traducción y estilos.
-    """
-    logger.info("Insertando tipos de instrumentos en la base de datos...")
-
-    try:
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
-
-        for instrument in INSTRUMENTS_TYPES_SCHEMA:
-            # Insertar clave de traducción
-            cursor.execute(
-                "INSERT INTO translation_key (key_name) VALUES (?)",
-                (instrument["key"],),
-            )
-            key_id = cursor.lastrowid
-
-            # Insertar tipo de instrumento
-            cursor.execute(
-                """
-                INSERT INTO instrument_type (name_key_id, code, processor_path, styles)
-                VALUES (?, ?, ?, ?)
-                """,
-                (
-                    key_id,
-                    instrument["code"],
-                    str(instrument["processor_path"]),
-                    instrument["styles"],
-                ),
-            )
-
-            # Insertar traducciones
-            cursor.executemany(
-                """
-                INSERT INTO translation (key_id, language_code, translated_text)
-                VALUES (?, ?, ?)
-                """,
-                [
-                    (key_id, "es", instrument["es"]),
-                    (key_id, "en", instrument["en"]),
-                ],
-            )
-
-        conn.commit()
-        logger.info("Tipos de instrumentos insertados correctamente.")
-
-    except Exception as e:
-        logger.error(f"Error al insertar tipos de instrumentos: {e}")
-        raise
-
-    finally:
-        conn.close()

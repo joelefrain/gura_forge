@@ -1,0 +1,8 @@
+{
+    "INGEMMET (2023)": {
+        "shapefile": "data/maps/shp/ingemmet_nov_2023/Falla_Neotectonica.shp",
+        "author": "INGEMMET",
+        "map_name": "Fallas Neotectonicas",
+        "rev_date": "Nov-2023"
+    }
+}

@@ -1,0 +1,168 @@
+[table]
+color = [
+    ["white", "white", "white", "white", "white"],
+    ["white", "white", "white", "white", "white"],
+    ["white", "white", "white", "white", "white"],
+    ["white", "white", "white", "white", "white"],
+    ["white", "white", "white", "white", "white"],
+    ["white", "white", "white", "white", "white"],
+    ["theme_color", "white", "white", "white", "white"],
+]
+align = [
+    ["CENTER", "CENTER", "CENTER", "CENTER", "CENTER"],
+    ["CENTER", "CENTER", "CENTER", "CENTER", "CENTER"],
+    ["CENTER", "CENTER", "CENTER", "CENTER", "CENTER"],
+    ["CENTER", "LEFT", "LEFT", "CENTER", "CENTER"],
+    ["CENTER", "LEFT", "LEFT", "CENTER", "CENTER"],
+    ["CENTER", "LEFT", "LEFT", "CENTER", "CENTER"],
+    ["CENTER", "LEFT", "LEFT", "CENTER", "CENTER"],
+]
+valign = [
+    ["MIDDLE", "MIDDLE", "MIDDLE", "MIDDLE", "MIDDLE"],
+    ["MIDDLE", "MIDDLE", "MIDDLE", "MIDDLE", "MIDDLE"],
+    ["MIDDLE", "MIDDLE", "MIDDLE", "MIDDLE", "MIDDLE"],
+    ["MIDDLE", "MIDDLE", "MIDDLE", "MIDDLE", "MIDDLE"],
+    ["MIDDLE", "MIDDLE", "MIDDLE", "MIDDLE", "MIDDLE"],
+    ["MIDDLE", "MIDDLE", "MIDDLE", "MIDDLE", "MIDDLE"],
+    ["MIDDLE", "MIDDLE", "MIDDLE", "MIDDLE", "MIDDLE"],
+]
+color_border = [
+    ["white", "white", "white", "white", "white"],
+    ["white", "white", "white", "white", "white"],
+    ["black", "black", "black", "black", "black"],
+    ["black", "black", "black", "black", "black"],
+    ["black", "black", "black", "black", "black"],
+    ["black", "black", "black", "black", "black"],
+    ["black", "black", "black", "black", "black"],
+]
+size_border = [
+    [0.25, 0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25, 0.25],
+]
+font_size = [
+    [10, 10, 10, 10, 10],
+    [10, 10, 10, 10, 10],
+    [10, 10, 10, 10, 10],
+    [10, 10, 10, 10, 50],
+    [10, 10, 10, 10, 10],
+    [10, 10, 10, 10, 10],
+    [10, 10, 10, 10, 10],
+]
+font_color = [
+    ["black", "black", "black", "black", "black"],
+    ["black", "black", "black", "black", "black"],
+    ["black", "black", "black", "black", "black"],
+    ["black", "black", "black", "black", "black"],
+    ["black", "black", "black", "black", "black"],
+    ["black", "black", "black", "black", "black"],
+    ["theme_color_font", "black", "black", "black", "black"],
+]
+font_name = [
+    ["Helvetica", "Helvetica", "Helvetica", "Helvetica", "Helvetica"],
+    ["Helvetica", "Helvetica", "Helvetica", "Helvetica", "Helvetica"],
+    ["Helvetica", "Helvetica-Bold", "Helvetica", "Helvetica-Bold", "Helvetica"],
+    ["Helvetica", "Helvetica", "Helvetica-Bold", "Helvetica-Bold", "Helvetica"],
+    ["Helvetica", "Helvetica", "Helvetica-Bold", "Helvetica", "Helvetica"],
+    ["Helvetica", "Helvetica", "Helvetica-Bold", "Helvetica", "Helvetica"],
+    ["Helvetica", "Helvetica", "Helvetica-Bold", "Helvetica", "Helvetica"],
+]
+padding_left = [
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 1.5, 1.5, 0, 0],
+    [0, 1.5, 1.5, 0, 0],
+    [0, 1.5, 1.5, 0, 0],
+    [0, 1.5, 1.5, 0, 0],
+]
+padding_right = [
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 1.5, 1.5, 0, 0],
+    [0, 1.5, 1.5, 0, 0],
+    [0, 1.5, 1.5, 0, 0],
+    [0, 1.5, 1.5, 0, 0],
+]
+padding_top = [
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+]
+padding_bottom = [
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 0],
+    [0, 0, 0, 2, 22],
+    [0, 0, 0, 5, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+]
+
+[column_widths]
+values = [35, 12, 12, 76, 15]
+
+[row_heights]
+values = [367.5, 93.75, 15.375, 15.375, 15.375, 15.375, 15.375]
+
+[page]
+orientation = "landscape"
+size = "A4"
+margins = 25
+
+[border]
+style = "black"
+size = 1.0
+
+[spans]
+# {start = [R0, C0], end = [R1, C1]}
+values = [
+    { start = [0, 0], end = [0, 4] },
+    { start = [1, 1], end = [1, 4] },
+    { start = [2, 0], end = [5, 0] },
+    { start = [2, 1], end = [2, 2] },
+    { start = [4, 3], end = [6, 3] },
+    { start = [3, 4], end = [6, 4] },
+]
+
+[settings]
+width_font_scale = 0.115
+
+[texts]
+num_item = "Gráfica N°"
+elaborated = "Elaborado"
+approved = "Aprobado"
+date = "Fecha"
+revision = "Revisión"
+
+[texts_positions]
+num_item = [2, 4]
+elaborated = [3, 1]
+approved = [4, 1]
+date = [5, 1]
+revision = [6, 1]
+
+[cell_positions]
+upper_cell = [1, 0]
+lower_cell = [1, 1]
+chart_cell = [0, 0]
+logo_cell = [2, 0]
+project_code = [2, 1]
+company_name = [2, 3]
+project_name = [3, 3]
+date = [5, 2]
+revision = [6, 2]
+elaborated_by = [3, 2]
+num_item = [3, 4]
+approved_by = [4, 2]
+doc_title = [6, 0]
+chart_title = [4, 3]

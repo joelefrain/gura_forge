@@ -1,0 +1,25 @@
+[header]
+background = "#0069AA"
+textColor = "#FFFFFF"
+fontName = "Helvetica-Bold"
+fontSize = 8
+LEADING = 8
+
+[body]
+background = "#FFFFFF"
+textColor = "#000000"
+fontName = "Helvetica"
+fontSize = 8
+LEADING = 8
+
+[borders]
+color = "#000000"
+width = 0.15
+
+[table]
+ALIGN = "CENTER"
+VALIGN = "MIDDLE"
+LEFTPADDING = 0
+RIGHTPADDING = 0
+TOPPADDING = 0
+BOTTOMPADDING = 0

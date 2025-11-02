@@ -3,6 +3,100 @@
         "shapefile": "data/maps/shp/ingemmet_nov_2023/Falla_Neotectonica.shp",
         "author": "INGEMMET",
         "map_name": "Fallas Neotectonicas",
-        "rev_date": "Nov-2023"
+        "rev_date": "Nov-2023",
+        "variables": {
+            "object_id": {
+                "original_name": "OBJECTID",
+                "screen_name": "Identificador del elemento"
+            },
+            "geocat_code": {
+                "original_name": "COD_GEOCAT",
+                "screen_name": "Código en GEOCATMIN"
+            },
+            "sara_code": {
+                "original_name": "COD_SARA",
+                "screen_name": "Código en el proyecto SARA"
+            },
+            "symbol_code": {
+                "original_name": "SIMB_T_EST",
+                "screen_name": "Código de simbología o leyenda"
+            },
+            "structure_name": {
+                "original_name": "NOMBRE",
+                "screen_name": "Nombre de la estructura"
+            },
+            "structure_type": {
+                "original_name": "TIPO_ESTRU",
+                "screen_name": "Tipo de estructura"
+            },
+            "kinematics": {
+                "original_name": "CINEMATICA",
+                "screen_name": "Cinemática de la estructura"
+            },
+            "fault_system": {
+                "original_name": "SISTEMA_FA",
+                "screen_name": "Sistema de fallas al que pertenece la estructura"
+            },
+            "strike": {
+                "original_name": "RUMBO",
+                "screen_name": "Rumbo de la estructura"
+            },
+            "dip": {
+                "original_name": "BUZAMIENTO",
+                "screen_name": "Buzamiento de la estructura"
+            },
+            "dip_direction": {
+                "original_name": "DIR_BUZ",
+                "screen_name": "Dirección de buzamiento de la estructura"
+            },
+            "movement_rate": {
+                "original_name": "TASA_MOV",
+                "screen_name": "Tasa de movimiento"
+            },
+            "last_movement_age": {
+                "original_name": "EDAD_ULT_M",
+                "screen_name": "Edad del último movimiento"
+            },
+            "reliability": {
+                "original_name": "CONFIABILI",
+                "screen_name": "Confiabilidad"
+            },
+            "synopsis": {
+                "original_name": "SINOPSIS",
+                "screen_name": "Sinopsis de la estructura"
+            },
+            "morphology": {
+                "original_name": "MORFOLOGIA",
+                "screen_name": "Morfología relacionada a la estructura"
+            },
+            "previous_studies": {
+                "original_name": "ESTUDIOS_A",
+                "screen_name": "Estudios anteriores"
+            },
+            "compiler": {
+                "original_name": "COMPILADOR",
+                "screen_name": "Quien ha compilado la información"
+            },
+            "organization": {
+                "original_name": "ORGANIZACI",
+                "screen_name": "Organización que ha compilado la información"
+            },
+            "email": {
+                "original_name": "E-MAIL",
+                "screen_name": "Correo electrónico del compilador"
+            },
+            "compilation_date": {
+                "original_name": "FECHA_COMP",
+                "screen_name": "Fecha de compilación"
+            },
+            "modification_date": {
+                "original_name": "FECHA_MODI",
+                "screen_name": "Fecha de actualización"
+            },
+            "reference": {
+                "original_name": "REFERENCIA",
+                "screen_name": "Referencia"
+            }
+        }
     }
 }

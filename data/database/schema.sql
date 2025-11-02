@@ -99,4 +99,43 @@ CREATE TABLE session (
     FOREIGN KEY (project_id) REFERENCES engineering_project(id)
 );
 
-CREATE INDEX idx_session_project ON session(project_id);
+-- Tabla principal de eventos sísmicos
+CREATE TABLE IF NOT EXISTS seismic_events (
+    event_id TEXT PRIMARY KEY,
+    agency TEXT NOT NULL,
+    catalog TEXT NOT NULL,
+    event_time DATETIME NOT NULL,
+    longitude REAL NOT NULL,
+    latitude REAL NOT NULL,
+    depth REAL,
+    magnitude REAL,
+    mag_type TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla de control de sincronización
+CREATE TABLE IF NOT EXISTS sync_catalog (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    catalog TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    start_time DATETIME NOT NULL,
+    end_time DATETIME,
+    records_processed INTEGER DEFAULT 0,
+    records_inserted INTEGER DEFAULT 0,
+    records_updated INTEGER DEFAULT 0,
+    status TEXT CHECK(status IN ('running', 'completed', 'failed')) DEFAULT 'running',
+    error_message TEXT,
+    UNIQUE(catalog, year)
+);
+
+-- Índices para consultas eficientes
+CREATE INDEX IF NOT EXISTS idx_session_project ON session(project_id);
+
+CREATE INDEX IF NOT EXISTS idx_event_time ON seismic_events(event_time);
+
+CREATE INDEX IF NOT EXISTS idx_catalog ON seismic_events(catalog);
+
+CREATE INDEX IF NOT EXISTS idx_magnitude ON seismic_events(magnitude);
+
+CREATE INDEX IF NOT EXISTS idx_location ON seismic_events(latitude, longitude);

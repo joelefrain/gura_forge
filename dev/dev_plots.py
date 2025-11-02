@@ -38,7 +38,7 @@ def example_barchart_fluent_api():
         figsize=(12, 10),
         n_xticks=5,
         n_yticks=5,
-       fmt_scale=1.2,
+        fmt_scale=1.2,
     )
 
     # Construir el gráfico paso a paso
@@ -111,7 +111,7 @@ def example_barchart_advanced():
         dx=8,  # Barras más anchas
         dy=0.08,
         figsize=(16, 12),
-       fmt_scale=1.5,
+        fmt_scale=1.5,
         n_xticks=6,
         n_yticks=5,
     )
@@ -143,16 +143,16 @@ def example_barchart_advanced():
 def example_map_fluent_api():
     """Ejemplo de mapa con construcción fluida."""
 
-
     mapa = Map(
-        figsize=(10, 12),
+        figsize=(10, 10),
         extent=[-80, -70, -20, -10],
-       fmt_scale=1.0,
+        fmt_scale=1.0,
+        n_xticks=10,
     )
 
     # Construir paso a paso
     mapa.add_features(color="gray", linewidth=0.5)
-    # mapa.add_sat_img(zoom=6, alpha=0.7)
+    mapa.add_sat_img(zoom=6, alpha=0.7)
 
     # Añadir datos
     lons = [-75.5, -76.2, -74.8]
@@ -167,7 +167,7 @@ def example_map_fluent_api():
         label="Estaciones",
     )
 
-    mapa.add_legend()
+    # mapa.add_legend()
     mapa.add_gridlines(alpha=0.3)
 
     mapa.save_plot("dev/outputs/map_fluent", formats=["png"])
@@ -182,11 +182,11 @@ def example_map_fluent_api():
 def example_map_with_inset():
     """Ejemplo de mapa con recuadro de zoom."""
 
-    mapa = Map(figsize=(14, 16), extent=[-82, -68, -18, -0],fmt_scale = 1.2)
+    mapa = Map(figsize=(14, 16), extent=[-82, -68, -18, -0], fmt_scale=1.2)
 
     # Construcción del mapa
     mapa.add_features(color="darkgray", linewidth=0.8)
-    # mapa.add_sat_img(zoom=5, alpha=0.6)
+    mapa.add_sat_img(zoom=5, alpha=0.6)
 
     # Estaciones
     lons_all = [-77.05, -75.5, -76.2, -74.8, -71.5, -79.0, -78.5]
@@ -216,7 +216,7 @@ def example_map_with_inset():
         zorder=10,
     )
 
-    mapa.add_legend()
+    # mapa.add_legend()
     mapa.add_gridlines(alpha=0.4, color="white")
 
     # INSET: Zoom en Lima
@@ -248,7 +248,7 @@ def example_context_manager():
     key_dict = {"x": "x", "y": "y", "z": "z", "color": "epsilon"}
 
     # Context manager - auto cleanup
-    with BarChart3D(df, key_dict,fmt_scale=1.5) as chart:
+    with BarChart3D(df, key_dict, fmt_scale=1.5) as chart:
         chart.add_bars(colormap_name="coolwarm")
         chart.add_colorbar()
         chart.set_labels("X", "Y", "Z")
@@ -417,7 +417,9 @@ def example_with_without_config():
     chart1.close()
 
     # CON PlotConfig
-    chart2 = BarChart3D(df, key_dict, figsize=(10, 8), fmt_scale=1.5, n_xticks=4, n_yticks=4)
+    chart2 = BarChart3D(
+        df, key_dict, figsize=(10, 8), fmt_scale=1.5, n_xticks=4, n_yticks=4
+    )
     chart2.add_bars()
     chart2.add_colorbar()
     chart2.set_labels("X", "Y", "Z")
@@ -427,39 +429,125 @@ def example_with_without_config():
 
     print("✓ Comparación sin/con PlotConfig creada")
 
+def mapa_peru_estaciones():
+    """Mapa del Perú con estaciones acelerográficas RSICA y RSAQP, con insets de zoom (Ica arriba, Arequipa abajo)."""
+    
+    # ===== Mapa principal =====
+    mapa = Map(figsize=(7, 8), extent=[-82, -68, -18, -0], fmt_scale=1.0)
+    mapa.add_features(color="darkgray", linewidth=0.8)
+    mapa.add_sat_img(zoom=10, alpha=1.0)
+    mapa.add_gridlines(alpha=0.4, color="white")
+
+    # ===== Estaciones acelerográficas =====
+    estaciones = {
+        "SENCICO Arequipa": {"lon": -71.540807, "lat": -16.384990, "color": "blue"},
+        "SENCICO Ica": {"lon": -75.738444, "lat": -14.059553, "color": "red"},
+    }
+
+    # Estaciones sobre el mapa principal
+    for nombre, est in estaciones.items():
+        mapa.add_scatter(
+            lon=est["lon"],
+            lat=est["lat"],
+            s=50,
+            facecolor=est["color"],
+            edgecolor=None,
+            marker="^",
+            label=nombre,
+            linewidths=1.5,
+            zorder=10,
+        )
+
+    mapa.add_legend()
+
+    # =======================================================
+    # INSET 1: Zoom en RSICA (ICA) → arriba a la derecha
+    # =======================================================
+    mapa.add_inset_axes(
+        bounds=[0.70, 0.250, 0.25, 0.25],   # posición (x0, y0, ancho, alto)
+        xlim = [-75.7434, -75.7334],
+        ylim = [-14.0646, -14.0546],
+        zoom_in=16,
+        att_in=3,
+        boundcolor="white"
+    )
+    # mapa.add_scatter(
+    #     lon=estaciones["RSICA"]["lon"],
+    #     lat=estaciones["RSICA"]["lat"],
+    #     s=150,
+    #     facecolor="red",
+    #     edgecolor="black",
+    #     marker="^",
+    #     label="RSICA",
+    #     linewidths=1.5,
+    #     zorder=10,
+    # )
+
+    # =======================================================
+    # INSET 2: Zoom en RSAQP (AREQUIPA) → abajo a la izquierda
+    # =======================================================
+    mapa.add_inset_axes(
+        bounds=[0.02, 0, 0.25, 0.25],   # posición (x0, y0, ancho, alto)
+        xlim = [-71.550, -71.520],
+        ylim = [-16.400, -16.370],
+        zoom_in=16,
+        att_in=3,
+        boundcolor="white"
+    )
+    # mapa.add_scatter(
+    #     lon=estaciones["RSAQP"]["lon"],
+    #     lat=estaciones["RSAQP"]["lat"],
+    #     s=150,
+    #     facecolor="blue",
+    #     edgecolor="black",
+    #     marker="^",
+    #     label="RSAQP",
+    #     linewidths=1.5,
+    #     zorder=10,
+    # )
+
+    # =======================================================
+    # Guardar el resultado
+    # =======================================================
+    mapa.save_plot("dev/outputs/mapa_peru_estaciones_inset", formats=["svg"])
+    print("✓ Mapa del Perú con insets de zoom para RSICA (arriba) y RSAQP (abajo) creado")
+
+
 
 if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("EJECUTANDO EJEMPLOS - API FLUIDA")
     print("=" * 60)
 
+    mapa_peru_estaciones()
+
     # Ejemplos básicos
-    print("\n[1/10] Ejemplo básico...")
-    example_barchart_fluent_api()
+    # print("\n[1/10] Ejemplo básico...")
+    # example_barchart_fluent_api()
 
-    print("\n[2/10] Ejemplo mínimo...")
-    example_barchart_minimal()
+    # print("\n[2/10] Ejemplo mínimo...")
+    # example_barchart_minimal()
 
-    print("\n[3/10] Ejemplo avanzado...")
-    example_barchart_advanced()
+    # print("\n[3/10] Ejemplo avanzado...")
+    # example_barchart_advanced()
 
-    print("\n[4/10] Map...")
-    example_map_fluent_api()
+    # print("\n[4/10] Map...")
+    # example_map_fluent_api()
 
-    print("\n[5/10] Map con inset...")
-    example_map_with_inset()
+    # print("\n[5/10] Map con inset...")
+    # example_map_with_inset()
 
-    print("\n[6/10] Context manager...")
-    example_context_manager()
+    # print("\n[6/10] Context manager...")
+    # example_context_manager()
 
-    print("\n[7/10] Comparación de APIs...")
-    example_comparison()
+    # print("\n[7/10] Comparación de APIs...")
+    # example_comparison()
 
-    print("\n[8/10] Múltiples vistas...")
-    example_multiple_views()
+    # print("\n[8/10] Múltiples vistas...")
+    # example_multiple_views()
 
-    print("\n[9/10] Construcción incremental...")
-    example_incremental_construction()
+    # print("\n[9/10] Construcción incremental...")
+    # example_incremental_construction()
 
-    print("\n[10/10] Con/sin PlotConfig...")
-    example_with_without_config()
+    # print("\n[10/10] Con/sin PlotConfig...")
+    # example_with_without_config()

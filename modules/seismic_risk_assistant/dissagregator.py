@@ -1,6 +1,8 @@
 import numpy as np
 
-from libs.config.config_variables import RETURN_PRD_LST, DECIMAL_CHAR
+from libs.helpers.calc_helpers import round_decimal
+
+from libs.config.config_variables import RETURN_PRD_LST
 
 from modules.plotter.bar_chart_3d import BarChart3D
 
@@ -66,33 +68,35 @@ class Disaggregator:
     def create_description(self, spc_acc, tr, mag_wt, dist_wt, eps_wt):
         """Genera la descripción formateada para la leyenda del gráfico."""
 
-        def fmt(value, decimals=2, unit=None):
-            """Formatea un número reemplazando el punto decimal según configuración."""
-            formatted = f"{value:.{decimals}f}".replace(".", DECIMAL_CHAR)
-            return f"{formatted} {unit}" if unit else formatted
-
-        description = (
-            f"{fmt(spc_acc)}\n"
-            f"Tr = {fmt(tr, 0)} años\n"
-            f"M  = {fmt(mag_wt, 2)}\n"
-            f"R  = {fmt(dist_wt, 1, 'km')}\n"
-            f"ε  = {fmt(eps_wt, 2)}"
+        return (
+            f"{round_decimal(spc_acc, 2)}\n"
+            f"Tr = {round_decimal(tr, 0)} años\n"
+            f"M  = {round_decimal(mag_wt, 2)}\n"
+            f"R  = {round_decimal(dist_wt, 1)} km\n"
+            f"ε  = {round_decimal(eps_wt, 2)}"
         )
-
-        return description
 
     def generate_3d_chart(
         self,
         name,
         description,
-        figsize=(15, 15),
+        figsize=(15, 10),
         box_position={"x": 0.75, "y": 0.65},
         box_size={"width": 0.7, "height": 0.3},
         **kwargs,
     ):
         """Genera y guarda un gráfico 3D a partir del dataframe."""
-        # Crear la instancia del gráfico 3D
-        chart = BarChart3D(self.df, self.key_dict, figsize=figsize, **kwargs)
+
+        chart = BarChart3D(
+            self.df,
+            self.key_dict,
+            dx=8,
+            dy=0.08,
+            figsize=(16, 12),
+            fmt_scale=1.5,
+            n_xticks=6,
+            n_yticks=5,
+        )
 
         # Crear y guardar el gráfico
         chart.create_plot(colormap_name=self.colormap_name, **self.labels)

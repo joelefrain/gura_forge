@@ -1,4 +1,4 @@
-from libs.databases.db_creator import (
+from libs.helpers.db_helpers import (
     create_database,
     create_directories,
 )

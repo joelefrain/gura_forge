@@ -62,13 +62,16 @@ __pycache__/
 *.db
 *.sqlite3
 *.parquet
-*.geojson
 *.h5
 *.7z
 *.pkl
 
 # Ouputs
 */outputs/
+
+#Directory exceptions
+!data/catalog/*/*.csv
+!data/catalog/*/*.ndk
 
 # File exceptions
 !requirements.txt

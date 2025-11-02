@@ -56,6 +56,8 @@ CHART_CONFIG_DIR = BASE_DIR / "modules" / "reporter" / "data" / "charts"
 NOTE_CONFIG_DIR = BASE_DIR / "modules" / "reporter" / "data" / "notes"
 TABLE_CONFIG_DIR = BASE_DIR / "modules" / "reporter" / "data" / "tables"
 
+CATALOG_CSV_DIR = BASE_DIR / "data" / "catalog"
+
 # Caracteres permitidos en archivos para ser parseados
 # ---------------------------------------------------------------
 DEFAULT_SEP_CHARS = (",", ";", "\t", "|")
@@ -68,6 +70,8 @@ MAX_WORKERS = min(40, (os.cpu_count() or 1) * 5)
 # Límite de datos
 MAX_TOTAL_SIZE = 2.5 * 1024**3  # 2.5 GB
 MAX_FILE_SIZE = 800 * 1024**2  # 800 MB
+BATCH_SIZE_SQL_VAR = 500
+TIMEOUT_API_REQUEST = 3
 
 # Estilos para matplotlib
 # ---------------------------------------------------------------

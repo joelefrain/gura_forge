@@ -3,17 +3,25 @@ import pandas as pd
 from tabulate import tabulate
 
 
-def style_metadata(func):
-    def wrapper(self, value):
-        result = func(self, value)
-        formatted_result = (
-            tabulate(result, headers="keys", tablefmt="pretty", showindex=False)
-            if isinstance(result, pd.DataFrame)
-            else result
+def style_output(result):
+    """Aplica formato tabulado y lo muestra directamente."""
+    if isinstance(result, pd.DataFrame):
+        formatted_result = tabulate(
+            result, headers="keys", tablefmt="pretty", showindex=False
         )
-        return f"=== start ===\n{formatted_result}\n=== end ==="
+    else:
+        formatted_result = str(result)
+    print(formatted_result)
 
-    return wrapper
+
+def style_metadata_property(func):
+    """Decorador para aplicar estilo automáticamente a propiedades."""
+
+    def wrapper(self):
+        result = func(self)
+        return style_output(result)
+
+    return property(wrapper)
 
 
 def valid_attr(obj):
@@ -23,6 +31,16 @@ def valid_attr(obj):
         for attr in dir(obj)
         if isinstance(getattr(obj.__class__, attr, None), property)
     ]
+
+
+def style_metadata(func):
+    """Decorador general para funciones que devuelven DataFrames o resultados simples."""
+
+    def wrapper(self, *args, **kwargs):
+        result = func(self, *args, **kwargs)
+        return style_output(result)
+
+    return wrapper
 
 
 @style_metadata

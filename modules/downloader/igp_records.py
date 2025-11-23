@@ -3,21 +3,38 @@ import requests
 
 import pandas as pd
 
+from enum import Enum
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
-
-from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from dataclasses import dataclass, field
+from threading import Lock
 
 from libs.database.seismic_records import SeismicRecordsHandler
 
+from libs.config.config_logger import get_logger
 from libs.helpers.metadata_helpers import style_metadata_property
-from libs.config.config_logger import get_logger, log_execution_time
 
-from libs.config.config_variables import ACCEL_RECORD_STORE, TIMEOUT_API_REQUEST, MAX_WORKERS
+from libs.config.config_variables import (
+    ACCEL_RECORD_STORE,
+    TIMEOUT_API_REQUEST,
+    MAX_WORKERS,
+)
 
 logger = get_logger()
+
+
+class StationProcessStatus(Enum):
+    """Estados de procesamiento de estaciones"""
+
+    SUCCESS = "exitosa"
+    FILE_NOT_FOUND = "archivo_no_encontrado"
+    PARSE_ERROR = "error_parseo"
+    DB_STATION_SAVE_ERROR = "error_guardar_estacion"
+    DB_RECORD_SAVE_ERROR = "error_guardar_registro"
+    DB_SAMPLES_SAVE_ERROR = "error_guardar_muestras"
 
 
 @dataclass
@@ -32,480 +49,587 @@ class StationInfo:
 
 
 @dataclass
-class ProcessResult:
+class StationProcessResult:
     """Resultado del procesamiento de una estación"""
 
     station_code: str
-    success: bool
+    status: StationProcessStatus
     samples_count: int = 0
-    error: Optional[str] = None
-    download_time: float = 0.0
-    parse_time: float = 0.0
-    save_time: float = 0.0
+    station_id: Optional[int] = None
+    record_id: Optional[int] = None
+    error_detail: Optional[str] = None
+
+    @property
+    def success(self) -> bool:
+        return self.status == StationProcessStatus.SUCCESS
 
 
-class IGPDownloader:
-    """Descargador de registros de aceleración del Instituto Geofísico del Perú"""
+@dataclass
+class ParsedAccelerationData:
+    """Datos parseados de un archivo de aceleración"""
 
-    API_URL = (
-        "https://www.igp.gob.pe/servicios/api-acelerometrica/ran/breadcrumbstations2"
-    )
-    FILE_BASE_URL = "https://www.igp.gob.pe/servicios/api-acelerometrica/ran/file"
+    acceleration_metadata: Dict[str, str]
+    samples: List[Tuple[float, float, float]]
 
-    # Regex precompilados
-    _SECTION_PATTERN = re.compile(r"\d\.\s*")
-    _SAMPLING_PATTERN = re.compile(r"(\d+)")
-    _DATA_START_PATTERN = re.compile(r"Z\s+N\s+E\s*\n", re.MULTILINE)
-    _FIELD_PATTERN_CACHE = {}  # Cache de patrones por campo
+    @property
+    def sample_count(self) -> int:
+        return len(self.samples)
 
-    def __init__(self, max_workers: int = MAX_WORKERS):
-        """
-        Args:
-            max_workers: Número de threads para procesamiento paralelo (default: 5)
-        """
-        self.max_workers = max_workers
-        self.accel_dir = ACCEL_RECORD_STORE / "igp"
-        self.accel_dir.mkdir(parents=True, exist_ok=True)
 
-        # Métricas de procesamiento
-        self.total_stations = 0
-        self.successful_stations = 0
-        self.failed_stations = 0
-        self.total_samples = 0
-        self.total_download_time = 0.0
-        self.total_parse_time = 0.0
-        self.total_save_time = 0.0
-        self.failed_station_list = []
+@dataclass
+class EventProcessMetrics:
+    """Métricas de procesamiento de un evento"""
 
-    def _get_db_handler(self) -> SeismicRecordsHandler:
-        """Obtiene un handler de BD thread-safe"""
-        return SeismicRecordsHandler()
+    total_events_requested: int = 0
+    events_downloaded: int = 0
+    events_failed_download: int = 0
+    events_parse_error: int = 0
+    stations_processed: int = 0
+    stations_saved_db: int = 0
+    stations_file_not_found: int = 0
+    stations_parse_error: int = 0
+    stations_db_error: int = 0
+    total_samples: int = 0
+    failed_details: Dict[str, List[str]] = field(default_factory=dict)
+    _lock: Lock = field(default_factory=Lock)
 
-    def _get_session(self) -> requests.Session:
-        """Obtiene una sesión thread-safe"""
-        session = requests.Session()
-        # Configurar pool de conexiones para mejor rendimiento
-        adapter = requests.adapters.HTTPAdapter(
-            pool_connections=10, pool_maxsize=20, max_retries=2
-        )
-        session.mount("https://", adapter)
-        return session
+    def add_failed(self, category: str, station_code: str, error: str):
+        """Registra un fallo categorizado (thread-safe)"""
+        with self._lock:
+            if category not in self.failed_details:
+                self.failed_details[category] = []
+            self.failed_details[category].append(f"{station_code}: {error}")
 
-    def fetch_event_data(self, event_time: datetime) -> Optional[Dict]:
-        """Obtiene los datos del evento desde la API"""
-        datetime_str = event_time.strftime("%Y%m%d_%H%M%S")
+    def record_success(self, samples_count: int):
+        """Registra un guardado exitoso"""
+        with self._lock:
+            self.stations_saved_db += 1
+            self.total_samples += samples_count
 
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "Origin": "https://www.igp.gob.pe",
-            "Referer": f"https://www.igp.gob.pe/servicios/aceldat-peru/reportes-registros-acelerometricos?date={datetime_str}",
-        }
+    def record_file_not_found(self, station_code: str, error: str):
+        """Registra archivo no encontrado"""
+        with self._lock:
+            self.stations_file_not_found += 1
+        self.add_failed("Archivo no encontrado", station_code, error)
 
-        session = self._get_session()
-        try:
-            response = session.post(
-                self.API_URL,
-                json={"datetime": datetime_str},
-                headers=headers,
-                timeout=TIMEOUT_API_REQUEST,
-            )
-            response.raise_for_status()
-            data = response.json()
-            logger.info(f"Datos obtenidos: {data.get('_id', 'sin ID')}")
-            return data
+    def record_parse_error(self, station_code: str, error: str):
+        """Registra error de parseo"""
+        with self._lock:
+            self.stations_parse_error += 1
+        self.add_failed("Error de parseo", station_code, error)
 
-        except (requests.RequestException, ValueError) as e:
-            logger.error(f"Error obteniendo datos del evento: {e}")
-            return None
-        finally:
-            session.close()
+    def record_db_error(self, station_code: str, error: str):
+        """Registra error de BD"""
+        with self._lock:
+            self.stations_db_error += 1
+        self.add_failed("Error de BD", station_code, error)
 
-    def _build_download_url(
+
+class FileDownloader:
+    """Responsable de descargar archivos"""
+
+    __slots__ = ("output_dir", "base_url", "timeout", "_session_pool")
+
+    def __init__(
+        self, output_dir: Path, base_url: str, timeout: int = TIMEOUT_API_REQUEST
+    ):
+        self.output_dir = output_dir
+        self.base_url = base_url
+        self.timeout = timeout
+        self._session_pool = []
+
+    def build_url(
         self,
         event_id: Optional[int],
         event_time: datetime,
         station_code: str,
         network: str,
     ) -> str:
-        """Construye la URL de descarga"""
+        """Construye URL de descarga"""
         datetime_str = event_time.strftime("%Y%m%d_%H%M%S")
         event_id_str = str(event_id) if event_id else "undefined"
-        return f"{self.FILE_BASE_URL}/{event_id_str}_{datetime_str}_{station_code}_{network}.txt"
+        return f"{self.base_url}/{event_id_str}_{datetime_str}_{station_code}_{network}.txt"
 
-    def extract_stations(self, event_data: Dict) -> List[StationInfo]:
-        """Extrae información de estaciones"""
-        stations = []
-
-        for stat in event_data.get("stats", []):
-            try:
-                code = stat.get("cod")
-                name = stat.get("nom")
-                coordinates = stat.get("pos", {}).get("coordinates", [])
-
-                if code and name and len(coordinates) >= 2:
-                    stations.append(
-                        StationInfo(
-                            code=code,
-                            name=name,
-                            latitude=coordinates[1],
-                            longitude=coordinates[0],
-                            network=stat.get("net", "PE"),
-                        )
-                    )
-            except (KeyError, IndexError, ValueError):
-                continue
-
-        logger.info(f"Estaciones encontradas: {len(stations)}")
-        return stations
-
-    def _download_file(
+    def download(
         self, session: requests.Session, url: str, filename: str
     ) -> Optional[Path]:
         """Descarga un archivo"""
         try:
-            response = session.get(url, timeout=TIMEOUT_API_REQUEST)
+            response = session.get(url, timeout=self.timeout, stream=False)
             response.raise_for_status()
 
-            file_path = self.accel_dir / filename
+            file_path = self.output_dir / filename
             file_path.write_bytes(response.content)
             return file_path
 
-        except requests.RequestException as e:
-            logger.error(f"Error descargando {filename}: {e}")
+        except requests.RequestException:
             return None
 
-    def _get_field_pattern(self, field: str) -> re.Pattern:
-        """Obtiene patrón compilado desde cache"""
-        if field not in self._FIELD_PATTERN_CACHE:
-            self._FIELD_PATTERN_CACHE[field] = re.compile(
-                rf"{field}\s*:\s*(.+?)(?=\n|\r|$)", re.IGNORECASE
-            )
-        return self._FIELD_PATTERN_CACHE[field]
 
-    def _extract_section(
-        self, content: str, section_pattern: str, fields: List[str]
-    ) -> Dict:
-        """Extrae una sección del archivo"""
-        section_match = re.search(section_pattern, content, re.IGNORECASE)
-        if not section_match:
-            return {}
+class AccelerationFileParser:
+    """Responsable de parsear archivos de aceleración con optimizaciones"""
 
-        start_pos = section_match.end()
-        next_section = self._SECTION_PATTERN.search(content[start_pos:])
-        end_pos = start_pos + next_section.start() if next_section else len(content)
+    __slots__ = (
+        "_field_pattern_cache",
+        "_section_pattern",
+        "_sampling_pattern",
+        "_data_start_pattern",
+    )
+
+    # Patrones compilados a nivel de clase
+    _SECTION_PATTERN = re.compile(r"\d\.\s*")
+    _SAMPLING_PATTERN = re.compile(r"(\d+)")
+    _DATA_START_PATTERN = re.compile(r"Z\s+N\s+E\s*\n", re.MULTILINE)
+
+    def __init__(self):
+        self._field_pattern_cache: Dict[str, re.Pattern] = {}
+
+    def parse(self, file_path: Path) -> Optional[ParsedAccelerationData]:
+        """Parsea archivo completo - optimizado"""
+        try:
+            # Leer una sola vez
+            content = file_path.read_text(encoding="utf-8")
+
+            # Extraer datos en una pasada
+            acceleration_data = self._extract_acceleration_section(content)
+            if not acceleration_data:
+                return None
+
+            samples = self._extract_samples(content)
+            return ParsedAccelerationData(acceleration_data, samples)
+
+        except Exception:
+            return None
+
+    def _extract_acceleration_section(self, content: str) -> Optional[Dict[str, str]]:
+        """Extrae sección 3 - REGISTRO con compilación lazy"""
+        pattern = re.compile(r"3\.\s*REGISTRO\s", re.IGNORECASE)
+        match = pattern.search(content)
+        if not match:
+            return None
+
+        start_pos = match.end()
+        next_section = self._SECTION_PATTERN.search(content, start_pos)
+        end_pos = next_section.start() if next_section else len(content)
         section_text = content[start_pos:end_pos]
 
+        # Extrae solo los campos necesarios
         result = {}
-        for field in fields:
-            match = self._get_field_pattern(field).search(section_text)
+        for field in ("NÚMERO DE MUESTRAS", "MUESTREO", "PGA"):
+            pattern = self._get_field_pattern(field)
+            match = pattern.search(section_text)
             if match:
                 result[field] = match.group(1).strip()
-        return result
 
-    def _extract_acceleration_samples(
-        self, content: str
-    ) -> List[Tuple[float, float, float]]:
-        """Extrae muestras de aceleración optimizado"""
+        return result if result else None
+
+    def _extract_samples(self, content: str) -> List[Tuple[float, float, float]]:
+        """Extrae muestras con parsing optimizado"""
         match = self._DATA_START_PATTERN.search(content)
         if not match:
             return []
 
-        # Encontrar inicio de datos numéricos
-        data_start = match.end()
-        lines = content[data_start:].split("\n")
-
+        lines = content[match.end() :].split("\n")
         samples = []
-        # Procesar líneas hasta encontrar una inválida
+        samples_append = samples.append  # Caché de método
+
         for line in lines:
-            if not line.strip():
+            stripped = line.strip()
+            if not stripped:
                 continue
-            parts = line.split()
+
+            parts = stripped.split()
             if len(parts) < 3:
                 break
+
             try:
-                samples.append((float(parts[0]), float(parts[1]), float(parts[2])))
+                samples_append((float(parts[0]), float(parts[1]), float(parts[2])))
             except ValueError:
                 break
 
         return samples
 
-    def _parse_acceleration_file(self, file_path: Path) -> Optional[Dict]:
-        """Parsea archivo de aceleración"""
-        try:
-            content = file_path.read_text(encoding="utf-8")
-
-            acceleration = self._extract_section(
-                content,
-                r"3\.\s*REGISTRO DE ACELERACIÓN",
-                ["NÚMERO DE MUESTRAS", "MUESTREO", "PGA"],
+    def _get_field_pattern(self, field: str) -> re.Pattern:
+        """Obtiene patrón compilado desde cache"""
+        if field not in self._field_pattern_cache:
+            self._field_pattern_cache[field] = re.compile(
+                rf"{field}\s*:\s*(.+?)(?=\n|\r|$)", re.IGNORECASE
             )
+        return self._field_pattern_cache[field]
 
-            if not acceleration:
-                return None
 
-            return {
-                "acceleration": acceleration,
-                "samples": self._extract_acceleration_samples(content),
-            }
+class DatabaseBatch:
+    """Batch processor para inserciones eficientes"""
 
-        except Exception as e:
-            logger.error(f"Error parseando {file_path.name}: {e}")
-            return None
+    __slots__ = ("db", "batch_size", "_station_cache", "_lock")
 
-    def _extract_pga_values(self, pga_str: str) -> Tuple[float, float, float]:
-        """Extrae valores PGA"""
+    def __init__(self, db: SeismicRecordsHandler, batch_size: int = 50):
+        self.db = db
+        self.batch_size = batch_size
+        self._station_cache: Dict[str, int] = {}
+        self._lock = Lock()
+
+    def get_or_create_station(self, station_info: StationInfo) -> Optional[int]:
+        """Obtiene o crea estación con cache local"""
+        with self._lock:
+            if station_info.code in self._station_cache:
+                return self._station_cache[station_info.code]
+
         try:
-            values = pga_str.split()
-            return (float(values[0]), float(values[1]), float(values[2]))
-        except (IndexError, ValueError):
-            return (0.0, 0.0, 0.0)
-
-    def _extract_sampling_frequency(self, muestreo_str: str) -> float:
-        """Extrae frecuencia de muestreo"""
-        match = self._SAMPLING_PATTERN.search(muestreo_str)
-        return float(match.group(1)) if match else 100.0
-
-    def _save_to_database(
-        self,
-        db: SeismicRecordsHandler,
-        event_id: str,
-        station_info: StationInfo,
-        parsed_data: Dict,
-        file_path: Path,
-    ) -> bool:
-        """Guarda datos en BD"""
-        try:
-            station_id = db.insert_or_update_seismic_station(
+            station_id = self.db.insert_or_update_seismic_station(
                 code=station_info.code,
                 name=station_info.name,
                 latitude=station_info.latitude,
                 longitude=station_info.longitude,
             )
+            if station_id:
+                with self._lock:
+                    self._station_cache[station_info.code] = station_id
+            return station_id
+        except Exception:
+            return None
 
-            if not station_id:
-                return False
+    def save_acceleration_record(
+        self,
+        event_id: str,
+        station_id: int,
+        parsed_data: ParsedAccelerationData,
+        file_path: Path,
+    ) -> Optional[int]:
+        """Guarda registro de aceleración"""
+        try:
+            accel_data = parsed_data.acceleration_metadata
 
-            accel_data = parsed_data["acceleration"]
-            pga_values = self._extract_pga_values(accel_data.get("PGA", ""))
+            # Extracciones inline para evitar llamadas
+            pga_parts = accel_data.get("PGA", "0 0 0").split()
+            pga_values = (
+                float(pga_parts[0]) if len(pga_parts) > 0 else 0.0,
+                float(pga_parts[1]) if len(pga_parts) > 1 else 0.0,
+                float(pga_parts[2]) if len(pga_parts) > 2 else 0.0,
+            )
 
-            record_id = db.insert_seismic_acceleration_record(
+            # Frecuencia de muestreo
+            muestreo_match = re.search(r"(\d+)", accel_data.get("MUESTREO", "100"))
+            sampling_freq = float(muestreo_match.group(1)) if muestreo_match else 100.0
+
+            record_id = self.db.insert_seismic_acceleration_record(
                 event_id=event_id,
                 station_id=station_id,
                 num_samples=int(accel_data.get("NÚMERO DE MUESTRAS", "0")),
-                sampling_frequency=self._extract_sampling_frequency(
-                    accel_data.get("MUESTREO", "")
-                ),
+                sampling_frequency=sampling_freq,
                 pga_vertical=pga_values[0],
                 pga_north=pga_values[1],
                 pga_east=pga_values[2],
                 baseline_correction=True,
                 file_path=str(file_path),
             )
+            return record_id
+        except Exception:
+            return None
 
-            if record_id:
-                db.insert_acceleration_samples(record_id, parsed_data["samples"])
-                return True
-
+    def save_samples(self, record_id: int, samples: List[Tuple]) -> bool:
+        """Guarda muestras"""
+        try:
+            self.db.insert_acceleration_samples(record_id, samples)
+            return True
+        except Exception:
             return False
 
-        except Exception as e:
-            logger.error(f"Error guardando {station_info.code}: {e}")
-            return False
 
-    def _process_single_station(
+class StationProcessor:
+    """Responsable de procesar estaciones individuales - optimizado"""
+
+    __slots__ = ("downloader", "parser", "batch_db", "_session")
+
+    def __init__(
+        self,
+        file_downloader: FileDownloader,
+        parser: AccelerationFileParser,
+        batch_db: DatabaseBatch,
+    ):
+        self.downloader = file_downloader
+        self.parser = parser
+        self.batch_db = batch_db
+        self._session = self._build_session()
+
+    def process(
         self,
         event_id: str,
         event_time: datetime,
         api_event_id: Optional[int],
         station_info: StationInfo,
-    ) -> ProcessResult:
-        """Procesa una estación individual (thread-safe)"""
-        import time
-
-        session = self._get_session()
-        db = self._get_db_handler()
-
-        download_time = parse_time = save_time = 0.0
-        samples_count = 0
-
+    ) -> StationProcessResult:
+        """Procesa estación con sesión reutilizada"""
         try:
-            # Construir URL
-            download_url = self._build_download_url(
+            # Paso 1: Descargar
+            url = self.downloader.build_url(
                 api_event_id, event_time, station_info.code, station_info.network
             )
-
-            # Descargar archivo
-            start = time.time()
             filename = f"{event_id}_{station_info.code}.txt"
-            file_path = self._download_file(session, download_url, filename)
-            download_time = time.time() - start
+            file_path = self.downloader.download(self._session, url, filename)
 
             if not file_path:
-                return ProcessResult(station_info.code, False, error="Descarga fallida")
+                return StationProcessResult(
+                    station_info.code,
+                    StationProcessStatus.FILE_NOT_FOUND,
+                    error_detail="Archivo no descargado",
+                )
 
-            # Parsear archivo
-            start = time.time()
-            parsed_data = self._parse_acceleration_file(file_path)
-            parse_time = time.time() - start
-
+            # Paso 2: Parsear
+            parsed_data = self.parser.parse(file_path)
             if not parsed_data:
-                return ProcessResult(
+                return StationProcessResult(
                     station_info.code,
-                    False,
-                    download_time=download_time,
-                    error="Parseo fallido",
+                    StationProcessStatus.PARSE_ERROR,
+                    error_detail="Error parseando archivo",
                 )
 
-            samples_count = len(parsed_data["samples"])
+            # Paso 3: Guardar en BD
+            station_id = self.batch_db.get_or_create_station(station_info)
+            if not station_id:
+                return StationProcessResult(
+                    station_info.code,
+                    StationProcessStatus.DB_STATION_SAVE_ERROR,
+                    error_detail="Error guardando estación",
+                )
 
-            # Guardar en BD
-            start = time.time()
-            success = self._save_to_database(
-                db, event_id, station_info, parsed_data, file_path
+            record_id = self.batch_db.save_acceleration_record(
+                event_id, station_id, parsed_data, file_path
             )
-            save_time = time.time() - start
+            if not record_id:
+                return StationProcessResult(
+                    station_info.code,
+                    StationProcessStatus.DB_RECORD_SAVE_ERROR,
+                    station_id=station_id,
+                    error_detail="Error guardando registro",
+                )
 
-            if success:
-                logger.info(f"✓ {station_info.code}: {samples_count} muestras")
-                return ProcessResult(
+            samples_saved = self.batch_db.save_samples(record_id, parsed_data.samples)
+            if not samples_saved:
+                return StationProcessResult(
                     station_info.code,
-                    True,
-                    samples_count=samples_count,
-                    download_time=download_time,
-                    parse_time=parse_time,
-                    save_time=save_time,
+                    StationProcessStatus.DB_SAMPLES_SAVE_ERROR,
+                    station_id=station_id,
+                    record_id=record_id,
+                    samples_count=parsed_data.sample_count,
+                    error_detail="Error guardando muestras",
                 )
-            else:
-                return ProcessResult(
-                    station_info.code,
-                    False,
-                    download_time=download_time,
-                    parse_time=parse_time,
-                    error="Error guardando en BD",
-                )
+
+            return StationProcessResult(
+                station_info.code,
+                StationProcessStatus.SUCCESS,
+                station_id=station_id,
+                record_id=record_id,
+                samples_count=parsed_data.sample_count,
+            )
 
         except Exception as e:
-            logger.error(f"Error procesando {station_info.code}: {e}")
-            return ProcessResult(
+            return StationProcessResult(
                 station_info.code,
-                False,
-                download_time=download_time,
-                parse_time=parse_time,
-                save_time=save_time,
-                error=str(e),
+                StationProcessStatus.DB_STATION_SAVE_ERROR,
+                error_detail=str(e),
             )
-        finally:
-            session.close()
 
-    @log_execution_time
+    @staticmethod
+    def _build_session() -> requests.Session:
+        """Construye sesión con conexión pooled"""
+        session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=20, pool_maxsize=50, max_retries=1
+        )
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+        return session
+
+    def close(self):
+        """Cierra sesión"""
+        if self._session:
+            self._session.close()
+
+
+class EventAPIClient:
+    """Cliente de API optimizado"""
+
+    __slots__ = ("api_url", "timeout", "_session")
+
+    def __init__(self, api_url: str, timeout: int = TIMEOUT_API_REQUEST):
+        self.api_url = api_url
+        self.timeout = timeout
+        self._session = self._build_session()
+
+    def fetch_event_data(self, event_time: datetime) -> Optional[Dict]:
+        """Obtiene datos del evento"""
+        datetime_str = event_time.strftime("%Y%m%d_%H%M%S")
+
+        try:
+            response = self._session.post(
+                self.api_url,
+                json={"datetime": datetime_str},
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "Origin": "https://www.igp.gob.pe",
+                    "Referer": f"https://www.igp.gob.pe/servicios/aceldat-peru/reportes-registros-acelerometricos?date={datetime_str}",
+                },
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception:
+            return None
+
+    @staticmethod
+    def _build_session() -> requests.Session:
+        """Construye sesión configurada"""
+        session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=10, pool_maxsize=20, max_retries=2
+        )
+        session.mount("https://", adapter)
+        return session
+
+    def close(self):
+        """Cierra sesión"""
+        if self._session:
+            self._session.close()
+
+
+class StationExtractor:
+    """Extractor de estaciones - optimizado"""
+
+    @staticmethod
+    def extract(event_data: Dict) -> List[StationInfo]:
+        """Extrae estaciones eficientemente"""
+        stations = []
+
+        for stat in event_data.get("stats", []):
+            code = stat.get("cod")
+            if not code:
+                continue
+
+            name = stat.get("nom")
+            coords = stat.get("pos", {}).get("coordinates", [])
+
+            if name and len(coords) >= 2:
+                stations.append(
+                    StationInfo(
+                        code=code,
+                        name=name,
+                        latitude=coords[1],
+                        longitude=coords[0],
+                        network=stat.get("net", "PE"),
+                    )
+                )
+
+        return stations
+
+
+class IGPDownloader:
+    """Orquestador principal optimizado para velocidad"""
+
+    API_URL = (
+        "https://www.igp.gob.pe/servicios/api-acelerometrica/ran/breadcrumbstations2"
+    )
+    FILE_BASE_URL = "https://www.igp.gob.pe/servicios/api-acelerometrica/ran/file"
+
+    def __init__(self, max_workers: int = MAX_WORKERS):
+        self.max_workers = max_workers
+        self.accel_dir = ACCEL_RECORD_STORE / "igp"
+        self.accel_dir.mkdir(parents=True, exist_ok=True)
+
+        self.api_client = EventAPIClient(self.API_URL)
+        self.file_downloader = FileDownloader(self.accel_dir, self.FILE_BASE_URL)
+        self.parser = AccelerationFileParser()
+        self.metrics = EventProcessMetrics()
+
     def process_event(
         self, event_id: str, event_time: datetime, catalog: str = "igp"
     ) -> bool:
-        """Procesa un evento completo con procesamiento paralelo"""
-        logger.info(f"Iniciando proceso del evento {event_id} - {catalog}")
+        """Procesa evento con máxima eficiencia"""
+        self.metrics.total_events_requested += 1
 
-        # Obtener datos del evento
-        event_data = self.fetch_event_data(event_time)
+        event_data = self.api_client.fetch_event_data(event_time)
         if not event_data:
-            logger.error(f"No se pudieron obtener datos del evento {event_id}")
+            self.metrics.events_failed_download += 1
             return False
 
-        # Extraer estaciones
-        stations = self.extract_stations(event_data)
+        self.metrics.events_downloaded += 1
+
+        stations = StationExtractor.extract(event_data)
         if not stations:
-            logger.warning(f"No se encontraron estaciones para {event_id}")
+            self.metrics.events_parse_error += 1
             return False
 
-        api_event_id = event_data.get("_id")
-        self.total_stations = len(stations)
+        self.metrics.stations_processed = len(stations)
 
-        # Procesar estaciones en paralelo
-        logger.info(
-            f"Procesando {len(stations)} estaciones con {self.max_workers} workers..."
+        # Procesar con batch DB
+        batch_db = DatabaseBatch(SeismicRecordsHandler())
+        results = self._process_stations_parallel(
+            event_id, event_time, event_data.get("_id"), stations, batch_db
         )
 
+        self._update_metrics(results)
+
+        return self.metrics.stations_saved_db > 0
+
+    def _process_stations_parallel(
+        self,
+        event_id: str,
+        event_time: datetime,
+        api_event_id: Optional[int],
+        stations: List[StationInfo],
+        batch_db: DatabaseBatch,
+    ) -> List[StationProcessResult]:
+        """Procesamiento paralelo con procesador reutilizable"""
         results = []
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {
-                executor.submit(
-                    self._process_single_station,
-                    event_id,
-                    event_time,
-                    api_event_id,
-                    station,
-                ): station
-                for station in stations
-            }
+        processor = StationProcessor(self.file_downloader, self.parser, batch_db)
 
-            for future in as_completed(futures):
-                try:
-                    result = future.result()
-                    results.append(result)
-                except Exception as e:
-                    station = futures[future]
-                    logger.error(f"Excepción procesando {station.code}: {e}")
-                    results.append(ProcessResult(station.code, False, error=str(e)))
+        try:
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                futures = [
+                    executor.submit(
+                        processor.process, event_id, event_time, api_event_id, station
+                    )
+                    for station in stations
+                ]
 
-        # Calcular métricas
-        self._calculate_metrics(results)
+                for future in as_completed(futures):
+                    try:
+                        results.append(future.result())
+                    except Exception as e:
+                        # Fallback silencioso
+                        pass
 
-        # Resumen
-        logger.info(
-            f"Proceso completado: {self.successful_stations} exitosos, "
-            f"{self.failed_stations} fallidos de {self.total_stations} totales"
-        )
+            return results
+        finally:
+            processor.close()
 
-        if self.failed_stations > 0:
-            logger.warning(
-                f"Estaciones fallidas: {', '.join(self.failed_station_list)}"
-            )
-
-        return self.successful_stations > 0
-
-    def _calculate_metrics(self, results: List[ProcessResult]):
-        """Calcula métricas de procesamiento"""
-        self.successful_stations = sum(1 for r in results if r.success)
-        self.failed_stations = len(results) - self.successful_stations
-        self.total_samples = sum(r.samples_count for r in results if r.success)
-        self.total_download_time = sum(r.download_time for r in results)
-        self.total_parse_time = sum(r.parse_time for r in results)
-        self.total_save_time = sum(r.save_time for r in results)
-        self.failed_station_list = [r.station_code for r in results if not r.success]
+    def _update_metrics(self, results: List[StationProcessResult]):
+        """Actualiza métricas eficientemente"""
+        for result in results:
+            if result.success:
+                self.metrics.record_success(result.samples_count)
+            elif result.status == StationProcessStatus.FILE_NOT_FOUND:
+                self.metrics.record_file_not_found(result.station_code, "")
+            elif result.status == StationProcessStatus.PARSE_ERROR:
+                self.metrics.record_parse_error(result.station_code, "")
+            else:
+                self.metrics.record_db_error(result.station_code, "")
 
     @style_metadata_property
     def metadata(self):
-        """Devuelve resumen tabulado del procesamiento"""
-        success_rate = (
-            (self.successful_stations / self.total_stations * 100)
-            if self.total_stations > 0
-            else 0
-        )
-
-        avg_download = (
-            self.total_download_time / self.total_stations
-            if self.total_stations > 0
-            else 0
-        )
-        avg_parse = (
-            self.total_parse_time / self.total_stations
-            if self.total_stations > 0
-            else 0
-        )
-        avg_save = (
-            self.total_save_time / self.total_stations if self.total_stations > 0 else 0
-        )
-
+        """Resumen tabular"""
         data = {
-            "Total estaciones": [self.total_stations],
-            "Exitosas": [self.successful_stations],
-            "Fallidas": [self.failed_stations],
-            "Tasa éxito (%)": [f"{success_rate:.1f}"],
-            "Total muestras": [self.total_samples],
-            "Tiempo descarga (s)": [f"{self.total_download_time:.2f}"],
-            "Tiempo parseo (s)": [f"{self.total_parse_time:.2f}"],
-            "Tiempo guardado (s)": [f"{self.total_save_time:.2f}"],
-            "Promedio/estación (s)": [f"{avg_download + avg_parse + avg_save:.2f}"],
+            "Eventos solicitados": [self.metrics.total_events_requested],
+            "Eventos descargados": [self.metrics.events_downloaded],
+            "Eventos fallidos (descarga)": [self.metrics.events_failed_download],
+            "Eventos fallidos (parseo)": [self.metrics.events_parse_error],
+            "Estaciones procesadas": [self.metrics.stations_processed],
+            "Estaciones guardadas BD": [self.metrics.stations_saved_db],
+            "Estaciones sin archivo": [self.metrics.stations_file_not_found],
+            "Estaciones error parseo": [self.metrics.stations_parse_error],
+            "Estaciones error BD": [self.metrics.stations_db_error],
+            "Total muestras": [self.metrics.total_samples],
         }
         return pd.DataFrame(data)
 
@@ -513,4 +637,4 @@ class IGPDownloader:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        pass  
+        self.api_client.close()

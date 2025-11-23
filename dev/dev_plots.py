@@ -52,7 +52,7 @@ def example_barchart_fluent_api():
 
     # Guardar
     chart.save_plot("dev/outputs/barchart_fluent", formats=["png", "svg"])
-    print("✓ BarChart3D creado ")
+    print("BarChart3D creado ")
 
 
 # ============================================================================
@@ -82,7 +82,7 @@ def example_barchart_minimal():
     chart.set_limits()
 
     chart.save_plot("dev/outputs/barchart_minimal", formats=["png"])
-    print("✓ BarChart3D mínimo creado")
+    print("BarChart3D mínimo creado")
 
 
 # ============================================================================
@@ -132,7 +132,7 @@ def example_barchart_advanced():
     )
 
     chart.save_plot("dev/outputs/barchart_advanced", formats=["png", "svg"])
-    print("✓ BarChart3D avanzado creado")
+    print("BarChart3D avanzado creado")
 
 
 # ============================================================================
@@ -171,7 +171,7 @@ def example_map_fluent_api():
     mapa.add_gridlines(alpha=0.3)
 
     mapa.save_plot("dev/outputs/map_fluent", formats=["png"])
-    print("✓ Map con creado")
+    print("Map con creado")
 
 
 # ============================================================================
@@ -230,7 +230,7 @@ def example_map_with_inset():
     )
 
     mapa.save_plot("dev/outputs/map_with_inset", formats=["png"])
-    print("✓ Map con inset creado")
+    print("Map con inset creado")
 
 
 # ============================================================================
@@ -255,7 +255,7 @@ def example_context_manager():
         chart.set_limits()
         chart.save_plot("dev/outputs/context_example", formats=["png"])
 
-    print("✓ Context manager completado")
+    print("Context manager completado")
 
 
 # ============================================================================
@@ -284,7 +284,7 @@ def example_comparison():
     chart.set_limits()
     chart.save_plot("dev/outputs/comparison_new_api", formats=["png"])
 
-    print("\n✓ Ejemplo de comparación creado")
+    print("\nEjemplo de comparación creado")
 
 
 # ============================================================================
@@ -339,7 +339,7 @@ def example_multiple_views():
     chart3.save_plot("dev/outputs/view_lateral", formats=["png"])
     chart3.close()
 
-    print("✓ Múltiples vistas creadas: frontal, superior, lateral")
+    print("Múltiples vistas creadas: frontal, superior, lateral")
 
 
 # ============================================================================
@@ -385,7 +385,7 @@ def example_incremental_construction():
     print("  7. Guardando...")
     chart.save_plot("dev/outputs/incremental", formats=["png"])
 
-    print("✓ Construcción incremental completada")
+    print("Construcción incremental completada")
 
 
 # ============================================================================
@@ -427,7 +427,7 @@ def example_with_without_config():
     chart2.save_plot("dev/outputs/with_config", formats=["png"])
     chart2.close()
 
-    print("✓ Comparación sin/con PlotConfig creada")
+    print("Comparación sin/con PlotConfig creada")
 
 
 def mapa_peru_estaciones():
@@ -465,7 +465,7 @@ def mapa_peru_estaciones():
     # Guardar el resultado
     # =======================================================
     mapa.save_plot("dev/outputs/mapa_peru_estaciones_inset", formats=["svg"])
-    print(f"✓ Mapa del Perú con {len(df)} estaciones creado desde {ruta_txt}")
+    print(f"Mapa del Perú con {len(df)} estaciones creado desde {ruta_txt}")
 
 
 if __name__ == "__main__":

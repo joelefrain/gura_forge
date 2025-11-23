@@ -44,7 +44,7 @@ def test_timeseries():
     # Se aplica todo automáticamente al guardar
     plt.savefig("dev/outputs/test_timeseries.png", dpi=150, bbox_inches="tight")
     plt.close()
-    print("✓ Guardado: test_timeseries.png")
+    print("Guardado: test_timeseries.png")
 
 
 def test_timeseries_legend_variations():
@@ -91,7 +91,7 @@ def test_timeseries_legend_variations():
             bbox_inches="tight",
         )
         plt.close()
-        print(f"✓ Guardado: test_timeseries_{filename_suffix}.png")
+        print(f"Guardado: test_timeseries_{filename_suffix}.png")
 
 
 def test_map():
@@ -161,7 +161,7 @@ def test_map():
 
     plt.savefig("dev/outputs/test_map_default.png", dpi=150, bbox_inches="tight")
     plt.close()
-    print("✓ Guardado: test_map_default.png")
+    print("Guardado: test_map_default.png")
 
 
 def test_map_legend_inside():
@@ -211,7 +211,7 @@ def test_map_legend_inside():
 
     plt.savefig("dev/outputs/test_map_legend_inside.png", dpi=150, bbox_inches="tight")
     plt.close()
-    print("✓ Guardado: test_map_legend_inside.png")
+    print("Guardado: test_map_legend_inside.png")
 
 
 def test_map_with_ticks():
@@ -299,7 +299,7 @@ def test_map_with_ticks():
 
     plt.savefig("dev/outputs/test_map_with_ticks.png", dpi=150, bbox_inches="tight")
     plt.close()
-    print("✓ Guardado: test_map_with_ticks.png")
+    print("Guardado: test_map_with_ticks.png")
 
 
 def test_standard():
@@ -342,7 +342,7 @@ def test_standard():
     # Todo se aplica automáticamente al guardar
     plt.savefig("dev/outputs/test_standard.png", dpi=150, bbox_inches="tight")
     plt.close()
-    print("✓ Guardado: test_standard.png")
+    print("Guardado: test_standard.png")
 
 
 def test_standard_variations():
@@ -381,7 +381,7 @@ def test_standard_variations():
             bbox_inches="tight",
         )
         plt.close()
-        print(f"✓ Guardado: test_standard_scale_{scale}.png")
+        print(f"Guardado: test_standard_scale_{scale}.png")
 
 
 def test_subplots():
@@ -436,7 +436,7 @@ def test_subplots():
     plt.tight_layout()
     plt.savefig("dev/outputs/test_subplots.png", dpi=150, bbox_inches="tight")
     plt.close()
-    print("✓ Guardado: test_subplots.png")
+    print("Guardado: test_subplots.png")
 
 
 def test_context_manager():
@@ -476,7 +476,7 @@ def test_context_manager():
             "dev/outputs/test_context_manager.png", dpi=150, bbox_inches="tight"
         )
         plt.close()
-        print("✓ Guardado: test_context_manager.png")
+        print("Guardado: test_context_manager.png")
 
 
 def test_setup_plot_function():
@@ -511,7 +511,7 @@ def test_setup_plot_function():
 
     plt.savefig("dev/outputs/test_setup_function.png", dpi=150, bbox_inches="tight")
     plt.close()
-    print("✓ Guardado: test_setup_function.png")
+    print("Guardado: test_setup_function.png")
 
 
 def main():

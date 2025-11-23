@@ -43,6 +43,7 @@ class SeismicDownloader:
     def __init__(self):
         self.db = SeismicRecordsHandler()
         self._reset_metrics()
+        self.catalog_results = {}
 
     def _reset_metrics(self):
         """Reinicia métricas de procesamiento"""
@@ -211,7 +212,7 @@ class SeismicDownloader:
 
                     if result.success:
                         logger.info(
-                            f"✓ {event_id}: {result.stations_processed} estaciones, "
+                            f"{event_id}: {result.stations_processed} estaciones, "
                             f"{result.samples_total} muestras en {result.processing_time:.2f}s"
                         )
                     else:
@@ -256,7 +257,7 @@ class SeismicDownloader:
                     event_id=event_id,
                     success=False,
                     processing_time=processing_time,
-                    error="Procesamiento fallido (ver logs)",
+                    error="Procesamiento fallido",
                 )
 
         except Exception as e:
@@ -366,38 +367,72 @@ class SeismicDownloader:
 
         return self.process_catalog(catalog, events, max_workers, parallel_stations)
 
+    @log_execution_time
+    def process_multiple_catalogs(
+        self,
+        catalogs: Dict[str, int],
+        max_workers: int = 1,
+        parallel_stations: int = 5,
+    ) -> Dict:
+        """
+        Procesa múltiples catálogos secuencialmente y almacena resultados
+
+        Args:
+            catalogs: Diccionario con {nombre_catalogo: num_eventos}
+            max_workers: Workers para procesar eventos en paralelo
+            parallel_stations: Workers para procesar estaciones
+
+        Returns:
+            Diccionario con resultados consolidados de todos los catálogos
+        """
+        self.catalog_results = {}
+        logger.info(f"Iniciando procesamiento de {len(catalogs)} catálogos")
+
+        for catalog, num_events in catalogs.items():
+            logger.info(
+                f"Procesando catálogo: {catalog.upper()} ({num_events} eventos)"
+            )
+
+            result = self.process_events(
+                catalog=catalog,
+                num_events=num_events,
+                max_workers=max_workers,
+                parallel_stations=parallel_stations,
+            )
+
+            # Almacenar métricas actuales para este catálogo
+            self.catalog_results[catalog] = {
+                "result": result,
+                "total_events": self.total_events,
+                "processed_events": self.processed_events,
+                "successful_events": self.successful_events,
+                "failed_events": self.failed_events,
+                "total_stations": self.total_stations,
+                "total_samples": self.total_samples,
+                "processing_time": self.total_processing_time,
+            }
+
+        logger.info("Procesamiento de todos los catálogos completado")
+
+        return {
+            "success": True,
+            "catalogs_processed": len(catalogs),
+            "results": self.catalog_results,
+        }
+
     @style_metadata_property
     def metadata(self):
-        """Devuelve resumen tabulado del procesamiento"""
-        if self.total_events == 0:
+        """Devuelve resumen tabulado del procesamiento de los downloaders"""
+        if not self.catalog_results:
             return pd.DataFrame(
                 {"Mensaje": ["No hay datos de procesamiento disponibles"]}
             )
 
-        success_rate = (
-            (self.successful_events / self.total_events * 100)
-            if self.total_events > 0
-            else 0
-        )
-        avg_time = (
-            self.total_processing_time / self.processed_events
-            if self.processed_events > 0
-            else 0
-        )
+        df = pd.DataFrame.from_dict(self.catalog_results, orient="index")
+        df.reset_index(inplace=True)
+        df.rename(columns={"index": "Catalogo"}, inplace=True)
 
-        data = {
-            "Catálogo": [self.catalog_name or "N/A"],
-            "Total eventos": [self.total_events],
-            "Procesados": [self.processed_events],
-            "Exitosos": [self.successful_events],
-            "Fallidos": [self.failed_events],
-            "Tasa éxito (%)": [f"{success_rate:.1f}"],
-            "Estaciones totales": [self.total_stations],
-            "Muestras totales": [self.total_samples],
-            "Tiempo total (s)": [f"{self.total_processing_time:.2f}"],
-            "Tiempo promedio/evento (s)": [f"{avg_time:.2f}"],
-        }
-        return pd.DataFrame(data)
+        return df
 
     def close(self):
         """Cierra recursos"""

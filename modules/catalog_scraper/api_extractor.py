@@ -5,6 +5,8 @@ from datetime import datetime, timedelta, timezone
 
 from typing import List
 
+from libs.helpers.text_helpers import clean_str
+
 from modules.seismic_analysis.seismic_event import SeismicEvent
 
 from libs.config.config_logger import get_logger
@@ -222,6 +224,14 @@ class IGPExtractor:
                             f"Evento sin código en IGP, generado ID: {event_id}"
                         )
 
+                    # Estandarizar tipo de magnitud
+                    raw_mag_type = item.get("tipomagnitud", None)
+                    clean_mag_type = clean_str(
+                        raw_mag_type, allowable_chars=r"[A-Za-z]", remove_space=True
+                    )
+                    mag_type = clean_mag_type if clean_mag_type else "ML"
+
+                    # Generación del evento sísmico
                     event = SeismicEvent(
                         event_id=event_id,
                         agency="IGP",
@@ -235,7 +245,7 @@ class IGPExtractor:
                         magnitude=float(item["magnitud"])
                         if item.get("magnitud")
                         else None,
-                        mag_type=item.get("tipomagnitud", "ML"),
+                        mag_type=mag_type,
                     )
                     events.append(event)
 

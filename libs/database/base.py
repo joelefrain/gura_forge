@@ -17,10 +17,19 @@ class DatabaseManager:
 
     @staticmethod
     @contextmanager
-    def get_connection():
-        """Context manager para conexiones thread-safe"""
-        conn = sqlite3.connect(DATABASE_PATH)
+    def get_connection(db_path: str = None, wal: bool = False, check_same_thread: bool = True):
+        """Context manager para conexiones thread-safe y con opciones comunes"""
+        path = db_path or DATABASE_PATH
+        conn = sqlite3.connect(path, check_same_thread=check_same_thread)
         conn.row_factory = sqlite3.Row
+        try:
+            if wal:
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA foreign_keys = ON")
+        except Exception:
+            # No detener la creación si pragma falla, pero registrar
+            logger.debug("No se pudieron aplicar PRAGMA al conectar")
         try:
             yield conn
             conn.commit()
@@ -29,6 +38,17 @@ class DatabaseManager:
             raise
         finally:
             conn.close()
+
+    @staticmethod
+    @contextmanager
+    def transaction(db_path: str = None, wal: bool = False, check_same_thread: bool = True):
+        """Context manager que devuelve un cursor y maneja commit/rollback"""
+        with DatabaseManager.get_connection(db_path=db_path, wal=wal, check_same_thread=check_same_thread) as conn:
+            cursor = conn.cursor()
+            try:
+                yield cursor
+            except Exception:
+                raise
 
 
 class Repository(ABC):

@@ -1,13 +1,13 @@
 import sqlite3
 
-from contextlib import contextmanager
-
 from datetime import datetime
 from typing import List, Tuple, Optional
 
 from libs.config.config_variables import DATABASE_PATH, BATCH_SIZE_SQL_VAR
 
 from libs.config.config_logger import get_logger
+
+from libs.database.base import DatabaseManager
 
 logger = get_logger()
 
@@ -18,22 +18,8 @@ class SeismicCatalogHandler:
     def __init__(self):
         self._init_schema()
 
-    @contextmanager
-    def _get_connection(self):
-        conn = sqlite3.connect(DATABASE_PATH)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        try:
-            yield conn
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
-
     def _init_schema(self):
-        with self._get_connection() as conn:
+        with DatabaseManager.get_connection(db_path=DATABASE_PATH, wal=True) as conn:
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS seismic_events (
                     event_id TEXT PRIMARY KEY,
@@ -59,23 +45,21 @@ class SeismicCatalogHandler:
 
         inserted = updated = 0
 
-        with self._get_connection() as conn:
-            for i in range(0, len(events), BATCH_SIZE_SQL_VAR):
-                batch = events[i : i + BATCH_SIZE_SQL_VAR]
+        for i in range(0, len(events), BATCH_SIZE_SQL_VAR):
+            batch = events[i : i + BATCH_SIZE_SQL_VAR]
+            event_ids = [e.event_id for e in batch]
+            placeholders = ",".join("?" * len(event_ids))
 
-                # Verificar existentes
-                event_ids = [e.event_id for e in batch]
-                placeholders = ",".join("?" * len(event_ids))
+            with DatabaseManager.transaction(db_path=DATABASE_PATH, wal=True) as cursor:
                 existing = {
                     row[0]
-                    for row in conn.execute(
+                    for row in cursor.execute(
                         f"SELECT event_id FROM seismic_events WHERE event_id IN ({placeholders})",
                         event_ids,
                     ).fetchall()
                 }
 
-                # Upsert
-                conn.executemany(
+                cursor.executemany(
                     """
                     INSERT OR REPLACE INTO seismic_events 
                     (event_id, agency, catalog, event_time, longitude, latitude, depth, magnitude, mag_type)
@@ -97,8 +81,8 @@ class SeismicCatalogHandler:
                     ],
                 )
 
-                inserted += len(batch) - len(existing)
-                updated += len(existing)
+            inserted += len(batch) - len(existing)
+            updated += len(existing)
 
         return inserted, updated
 
@@ -113,8 +97,8 @@ class SeismicCatalogHandler:
         error: Optional[str] = None,
     ):
         """Registra el estado de sincronización"""
-        with self._get_connection() as conn:
-            conn.execute(
+        with DatabaseManager.transaction(db_path=DATABASE_PATH, wal=True) as cursor:
+            cursor.execute(
                 """
                 INSERT OR REPLACE INTO sync_catalog 
                 (catalog, year, start_time, end_time, records_processed, 
@@ -138,73 +122,57 @@ class SeismicCatalogHandler:
                 ),
             )
 
+    def get_event_times(
+        self,
+        catalogs: Optional[List[str]] = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[datetime]:
+        """
+        Obtiene los event_time de eventos filtrados por catálogo y rango temporal.
+        Retorna directamente lista de datetime.
+        """
+        if not catalogs:
+            logger.warning("get_event_times: catalogs vacío, retornando lista vacía")
+            return []
 
-def get_event_times(
-    self,
-    catalogs: Optional[List[str]] = None,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
-    limit: Optional[int] = None,
-) -> List[datetime]:
-    """
-    Obtiene los event_time de eventos filtrados por catálogo y rango temporal.
-    Retorna directamente lista de datetime.
+        placeholders = ",".join("?" * len(catalogs))
+        sql = f"SELECT event_time FROM seismic_events WHERE catalog IN ({placeholders})"
+        params = catalogs[:]
 
-    Params:
-        catalogs : lista de catálogos a filtrar (requerido)
-        start_time: fecha inicial (inclusive)
-        end_time: fecha final (inclusive)
-        limit: máximo número de registros
+        if start_time:
+            sql += " AND event_time >= ?"
+            params.append(start_time.isoformat())
 
-    Returns:
-        Lista de objetos datetime ordenados por event_time
-    """
-    if not catalogs:
-        logger.warning("get_event_times: catalogs vacío, retornando lista vacía")
-        return []
+        if end_time:
+            sql += " AND event_time <= ?"
+            params.append(end_time.isoformat())
 
-    # Construir query con placeholders para catalogs
-    placeholders = ",".join("?" * len(catalogs))
-    sql = f"SELECT event_time FROM seismic_events WHERE catalog IN ({placeholders})"
-    params = catalogs[:]  # Copia de la lista de catálogos
+        sql += " ORDER BY event_time"
 
-    # Filtros temporales - convertir datetime a string para SQLite
-    if start_time:
-        sql += " AND event_time >= ?"
-        params.append(start_time.isoformat())
+        if limit:
+            sql += " LIMIT ?"
+            params.append(limit)
 
-    if end_time:
-        sql += " AND event_time <= ?"
-        params.append(end_time.isoformat())
+        logger.debug(
+            f"Query: {sql} | Params: catalogs={catalogs}, start={start_time}, end={end_time}, limit={limit}"
+        )
 
-    sql += " ORDER BY event_time"
+        with DatabaseManager.get_connection(db_path=DATABASE_PATH, wal=True) as conn:
+            rows = conn.execute(sql, params).fetchall()
+            event_times = []
+            for row in rows:
+                try:
+                    if isinstance(row[0], str):
+                        event_times.append(datetime.fromisoformat(row[0]))
+                    elif isinstance(row[0], (int, float)):
+                        event_times.append(datetime.fromtimestamp(row[0]))
+                    else:
+                        event_times.append(row[0])
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Error convirtiendo fecha {row[0]}: {e}")
+                    continue
 
-    if limit:
-        sql += " LIMIT ?"
-        params.append(limit)
-
-    logger.debug(
-        f"Query: {sql} | Params: catalogs={catalogs}, start={start_time}, end={end_time}, limit={limit}"
-    )
-
-    # Ejecutar y convertir
-    with self._get_connection() as conn:
-        rows = conn.execute(sql, params).fetchall()
-        event_times = []
-        for row in rows:
-            try:
-                # Manejar diferentes formatos de fecha que podría devolver SQLite
-                if isinstance(row[0], str):
-                    event_times.append(datetime.fromisoformat(row[0]))
-                elif isinstance(row[0], (int, float)):
-                    # Si está almacenado como timestamp
-                    event_times.append(datetime.fromtimestamp(row[0]))
-                else:
-                    # Si ya es datetime object
-                    event_times.append(row[0])
-            except (ValueError, TypeError) as e:
-                logger.warning(f"Error convirtiendo fecha {row[0]}: {e}")
-                continue
-
-    logger.info(f"Obtenidos {len(event_times)} eventos de catálogos {catalogs}")
-    return event_times
+        logger.info(f"Obtenidos {len(event_times)} eventos de catálogos {catalogs}")
+        return event_times

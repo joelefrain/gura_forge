@@ -10,7 +10,7 @@ orchestrator = SeismicDownloader()
 
 try:
     # Procesar eventos recientes del catálogo IGP
-    result = orchestrator.process_recent_events(
+    result = orchestrator.process_events(
         catalog="igp",
         num_events=5310,
         max_workers=80,

@@ -39,6 +39,7 @@ ENV_FILE_PATH = BASE_DIR / "config" / ".env"
 # ---------------------------------------------------------------
 SCHEMA_SQL_PATH = BASE_DIR / "data" / "database" / "schema.sql"
 DATABASE_PATH = BASE_DIR / "data" / "database" / "gure_forge.db"
+ACCEL_RECORD_STORE = BASE_DIR / "data" / "accel_records"
 
 # Rutas a archivos destacados
 # ---------------------------------------------------------------
@@ -70,8 +71,8 @@ MAX_WORKERS = min(40, (os.cpu_count() or 1) * 5)
 # Límite de datos
 MAX_TOTAL_SIZE = 2.5 * 1024**3  # 2.5 GB
 MAX_FILE_SIZE = 800 * 1024**2  # 800 MB
-BATCH_SIZE_SQL_VAR = 500
-TIMEOUT_API_REQUEST = 3
+BATCH_SIZE_SQL_VAR = 5000
+TIMEOUT_API_REQUEST = 30
 
 # Estilos para matplotlib
 # ---------------------------------------------------------------

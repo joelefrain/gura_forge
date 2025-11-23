@@ -15,7 +15,8 @@ from modules.catalog_scraper.api_extractor import (
     ISCExtractor,
     IGPExtractor,
 )
-from libs.config.config_variables import TIMEOUT_API_REQUEST
+from libs.config.config_variables import TIMEOUT_API_REQUEST, MAX_WORKERS
+
 from libs.config.config_logger import get_logger, log_execution_time
 
 logger = get_logger()
@@ -24,9 +25,15 @@ logger = get_logger()
 class SeismicScraper:
     """Orquestador principal del scraping sísmico"""
 
-    def __init__(self, max_workers: int = 5, csv_base_path: Optional[Path] = None):
+    def __init__(
+        self,
+        max_workers: int = MAX_WORKERS,
+        timeout: int = TIMEOUT_API_REQUEST,
+        csv_base_path: Optional[Path] = None,
+    ):
         self.db = SeismicCatalogHandler()
         self.max_workers = max_workers
+        self.timeout = timeout
         self.csv_base_path = csv_base_path
 
     def scrape_catalog(
@@ -55,7 +62,7 @@ class SeismicScraper:
                     max_lon,
                     start_date,
                     end_date,
-                    timeout=TIMEOUT_API_REQUEST,
+                    timeout=self.timeout,
                 )
             elif catalog == "isc":
                 events = ISCExtractor.fetch_events(
@@ -65,10 +72,10 @@ class SeismicScraper:
                     max_lon,
                     start_date,
                     end_date,
-                    timeout=TIMEOUT_API_REQUEST,
+                    timeout=self.timeout,
                 )
             elif catalog == "igp":
-                events = IGPExtractor.fetch_events(year, timeout=TIMEOUT_API_REQUEST)
+                events = IGPExtractor.fetch_events(year, timeout=self.timeout)
             else:
                 raise ValueError(f"Catálogo desconocido: {catalog}")
 

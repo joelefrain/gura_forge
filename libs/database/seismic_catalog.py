@@ -2,6 +2,7 @@ import sqlite3
 
 from contextlib import contextmanager
 
+from datetime import datetime
 from typing import List, Tuple, Optional
 
 from libs.config.config_variables import DATABASE_PATH, BATCH_SIZE_SQL_VAR
@@ -136,3 +137,74 @@ class SeismicCatalogHandler:
                     error,
                 ),
             )
+
+
+def get_event_times(
+    self,
+    catalogs: Optional[List[str]] = None,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    limit: Optional[int] = None,
+) -> List[datetime]:
+    """
+    Obtiene los event_time de eventos filtrados por catálogo y rango temporal.
+    Retorna directamente lista de datetime.
+
+    Params:
+        catalogs : lista de catálogos a filtrar (requerido)
+        start_time: fecha inicial (inclusive)
+        end_time: fecha final (inclusive)
+        limit: máximo número de registros
+
+    Returns:
+        Lista de objetos datetime ordenados por event_time
+    """
+    if not catalogs:
+        logger.warning("get_event_times: catalogs vacío, retornando lista vacía")
+        return []
+
+    # Construir query con placeholders para catalogs
+    placeholders = ",".join("?" * len(catalogs))
+    sql = f"SELECT event_time FROM seismic_events WHERE catalog IN ({placeholders})"
+    params = catalogs[:]  # Copia de la lista de catálogos
+
+    # Filtros temporales - convertir datetime a string para SQLite
+    if start_time:
+        sql += " AND event_time >= ?"
+        params.append(start_time.isoformat())
+
+    if end_time:
+        sql += " AND event_time <= ?"
+        params.append(end_time.isoformat())
+
+    sql += " ORDER BY event_time"
+
+    if limit:
+        sql += " LIMIT ?"
+        params.append(limit)
+
+    logger.debug(
+        f"Query: {sql} | Params: catalogs={catalogs}, start={start_time}, end={end_time}, limit={limit}"
+    )
+
+    # Ejecutar y convertir
+    with self._get_connection() as conn:
+        rows = conn.execute(sql, params).fetchall()
+        event_times = []
+        for row in rows:
+            try:
+                # Manejar diferentes formatos de fecha que podría devolver SQLite
+                if isinstance(row[0], str):
+                    event_times.append(datetime.fromisoformat(row[0]))
+                elif isinstance(row[0], (int, float)):
+                    # Si está almacenado como timestamp
+                    event_times.append(datetime.fromtimestamp(row[0]))
+                else:
+                    # Si ya es datetime object
+                    event_times.append(row[0])
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Error convirtiendo fecha {row[0]}: {e}")
+                continue
+
+    logger.info(f"Obtenidos {len(event_times)} eventos de catálogos {catalogs}")
+    return event_times

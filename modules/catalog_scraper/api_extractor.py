@@ -195,13 +195,13 @@ class IGPExtractor:
             data = response.json()
 
             events = []
-            for item in data:
+            for idx, item in enumerate(data):
                 try:
-                    date_seed = parser.parse(item["fecha_local"])
-                    hour_seed = parser.parse(item["hora_local"])
+                    date_seed = parser.parse(item["fecha_utc"])
+                    hour_seed = parser.parse(item["hora_utc"])
 
-                    # Definir la zona horaria local (UTC−5)
-                    tz_local = timezone(timedelta(hours=-5))
+                    # Definir la zona horaria (UTC+0)
+                    tz_utc_0 = timezone(timedelta(hours=0))
 
                     # Combinar fecha y hora, manteniendo UTC
                     event_time = date_seed.replace(
@@ -209,11 +209,21 @@ class IGPExtractor:
                         minute=hour_seed.minute,
                         second=hour_seed.second,
                         microsecond=hour_seed.microsecond,
-                        tzinfo=tz_local,
+                        tzinfo=tz_utc_0,
                     )
 
+                    # Generar event_id si no existe
+                    event_id = item.get("codigo")
+                    if not event_id:
+                        # Generar ID único usando timestamp + ubicación + índice
+                        timestamp_str = event_time.strftime("%Y%m%d%H%M%S")
+                        event_id = f"IGP_{timestamp_str}"
+                        logger.warning(
+                            f"Evento sin código en IGP, generado ID: {event_id}"
+                        )
+
                     event = SeismicEvent(
-                        event_id=item["codigo"],
+                        event_id=event_id,
                         agency="IGP",
                         catalog="igp",
                         event_time=event_time,
@@ -225,12 +235,12 @@ class IGPExtractor:
                         magnitude=float(item["magnitud"])
                         if item.get("magnitud")
                         else None,
-                        mag_type=item.get("tipomagnitud", "M"),
+                        mag_type=item.get("tipomagnitud", "ML"),
                     )
                     events.append(event)
 
                 except (KeyError, ValueError) as e:
-                    logger.warning(f"Error parseando evento IGP: {e}")
+                    logger.warning(f"Error parseando evento IGP en índice {idx}: {e}")
                     continue
 
             return events

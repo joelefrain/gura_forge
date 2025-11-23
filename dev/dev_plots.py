@@ -429,31 +429,32 @@ def example_with_without_config():
 
     print("✓ Comparación sin/con PlotConfig creada")
 
+
 def mapa_peru_estaciones():
     """Mapa del Perú con estaciones acelerográficas RSICA y RSAQP, con insets de zoom (Ica arriba, Arequipa abajo)."""
-    
+
+    ruta_txt = r"C:\Users\joel.alarcon\Documents\Proyectos\AUDAS\comparacion-sencico\estaciones_igp.txt"
+
+    # ===== Leer archivo TXT =====
+    df = pd.read_csv(ruta_txt, sep=";", encoding="utf-8")
+
     # ===== Mapa principal =====
     mapa = Map(figsize=(7, 8), extent=[-82, -68, -18, -0], fmt_scale=1.0)
     mapa.add_features(color="darkgray", linewidth=0.8)
-    mapa.add_sat_img(zoom=10, alpha=1.0)
+    mapa.add_sat_img(zoom=6, alpha=1.0)
     mapa.add_gridlines(alpha=0.4, color="white")
 
     # ===== Estaciones acelerográficas =====
-    estaciones = {
-        "SENCICO Arequipa": {"lon": -71.540807, "lat": -16.384990, "color": "blue"},
-        "SENCICO Ica": {"lon": -75.738444, "lat": -14.059553, "color": "red"},
-    }
+    colores = ["blue"]
 
-    # Estaciones sobre el mapa principal
-    for nombre, est in estaciones.items():
+    for i, row in df.iterrows():
         mapa.add_scatter(
-            lon=est["lon"],
-            lat=est["lat"],
+            lon=row["Longitud"],
+            lat=row["Latitud"],
             s=50,
-            facecolor=est["color"],
+            facecolor=colores[i % len(colores)],
             edgecolor=None,
             marker="^",
-            label=nombre,
             linewidths=1.5,
             zorder=10,
         )
@@ -461,57 +462,10 @@ def mapa_peru_estaciones():
     mapa.add_legend()
 
     # =======================================================
-    # INSET 1: Zoom en RSICA (ICA) → arriba a la derecha
-    # =======================================================
-    mapa.add_inset_axes(
-        bounds=[0.70, 0.250, 0.25, 0.25],   # posición (x0, y0, ancho, alto)
-        xlim = [-75.7434, -75.7334],
-        ylim = [-14.0646, -14.0546],
-        zoom_in=16,
-        att_in=3,
-        boundcolor="white"
-    )
-    # mapa.add_scatter(
-    #     lon=estaciones["RSICA"]["lon"],
-    #     lat=estaciones["RSICA"]["lat"],
-    #     s=150,
-    #     facecolor="red",
-    #     edgecolor="black",
-    #     marker="^",
-    #     label="RSICA",
-    #     linewidths=1.5,
-    #     zorder=10,
-    # )
-
-    # =======================================================
-    # INSET 2: Zoom en RSAQP (AREQUIPA) → abajo a la izquierda
-    # =======================================================
-    mapa.add_inset_axes(
-        bounds=[0.02, 0, 0.25, 0.25],   # posición (x0, y0, ancho, alto)
-        xlim = [-71.550, -71.520],
-        ylim = [-16.400, -16.370],
-        zoom_in=16,
-        att_in=3,
-        boundcolor="white"
-    )
-    # mapa.add_scatter(
-    #     lon=estaciones["RSAQP"]["lon"],
-    #     lat=estaciones["RSAQP"]["lat"],
-    #     s=150,
-    #     facecolor="blue",
-    #     edgecolor="black",
-    #     marker="^",
-    #     label="RSAQP",
-    #     linewidths=1.5,
-    #     zorder=10,
-    # )
-
-    # =======================================================
     # Guardar el resultado
     # =======================================================
     mapa.save_plot("dev/outputs/mapa_peru_estaciones_inset", formats=["svg"])
-    print("✓ Mapa del Perú con insets de zoom para RSICA (arriba) y RSAQP (abajo) creado")
-
+    print(f"✓ Mapa del Perú con {len(df)} estaciones creado desde {ruta_txt}")
 
 
 if __name__ == "__main__":

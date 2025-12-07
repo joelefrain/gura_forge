@@ -447,20 +447,46 @@ class SeismicRecordsHandler:
 
     # ==================== QUERIES ÚTILES ====================
 
-    def get_events_without_records(self, catalog: str, limit: int = 10) -> List[dict]:
-        """Obtiene eventos sin registros de aceleración descargados"""
+    def get_events_without_records(
+        self,
+        catalog: str,
+        start_date: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[dict]:
+        """
+        Obtiene eventos sin registros de aceleración descargados.
+
+        Args:
+            catalog: Catálogo a consultar
+            start_date: Fecha de inicio en formato 'YYYY-MM-DD' (opcional)
+            limit: Límite de resultados (opcional, None = sin límite)
+        """
         try:
             with DatabaseManager.get_connection() as conn:
-                rows = conn.execute(
-                    """
+                # Base query
+                query = """
                     SELECT DISTINCT se.* FROM seismic_events se
-                    WHERE se.catalog = ? AND se.event_id NOT IN (
+                    WHERE se.catalog = ? 
+                    AND se.event_id NOT IN (
                         SELECT DISTINCT event_id FROM seismic_acceleration_record
                     )
-                    LIMIT ?
-                """,
-                    (catalog, limit),
-                ).fetchall()
+                """
+                params = [catalog]
+
+                # Agregar filtro de fecha si se proporciona
+                if start_date:
+                    query += " AND se.event_time >= ?"
+                    params.append(start_date)
+
+                # Ordenar por fecha (más antiguos primero)
+                query += " ORDER BY se.event_time ASC"
+
+                # Agregar límite si se proporciona
+                if limit is not None:
+                    query += " LIMIT ?"
+                    params.append(limit)
+
+                rows = conn.execute(query, tuple(params)).fetchall()
                 return [dict(row) for row in rows]
         except Exception as e:
             logger.error(f"Error en get_events_without_records: {e}")

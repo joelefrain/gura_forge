@@ -22,6 +22,7 @@ from libs.config.config_variables import (
     ACCEL_RECORD_STORE,
     TIMEOUT_API_REQUEST,
     MAX_WORKERS,
+    BASE_DIR,
 )
 
 logger = get_logger()
@@ -189,13 +190,11 @@ class AccelerationFileParser:
     __slots__ = (
         "_field_pattern_cache",
         "_section_pattern",
-        "_sampling_pattern",
         "_data_start_pattern",
     )
 
     # Patrones compilados a nivel de clase
     _SECTION_PATTERN = re.compile(r"\d\.\s*")
-    _SAMPLING_PATTERN = re.compile(r"(\d+)")
     _DATA_START_PATTERN = re.compile(r"Z\s+N\s+E\s*\n", re.MULTILINE)
 
     def __init__(self):
@@ -305,6 +304,42 @@ class DatabaseBatch:
         except Exception:
             return None
 
+    def _extract_sampling_frequency(
+        self, parsed_data: ParsedAccelerationData, file_path: Path
+    ) -> float:
+        """Extrae y valida la frecuencia de muestreo"""
+        accel_data = parsed_data.acceleration_metadata
+        muestreo_value = accel_data.get("MUESTREO")
+
+        if not muestreo_value:
+            raise ValueError(
+                f"No se encontró el campo MUESTREO en los metadatos del archivo {file_path}"
+            )
+
+        # Extraer solo números y puntos decimales
+        cleaned_value = "".join(c for c in muestreo_value if c.isdigit() or c == ".")
+        factor = 10 if float(cleaned_value) < 50 else 1
+        cleaned_value = str(float(cleaned_value) * factor)
+
+        if not cleaned_value:
+            raise ValueError(
+                f"No se pudo extraer la frecuencia de muestreo del valor: {muestreo_value}"
+            )
+
+        try:
+            sampling_freq = cleaned_value
+        except ValueError:
+            raise ValueError(
+                f"No se pudo convertir a número la frecuencia de muestreo: {cleaned_value} (valor original: {muestreo_value})"
+            )
+
+        return sampling_freq
+
+    def _get_relative_path(self, file_path: Path) -> str:
+        """Convierte ruta absoluta a relativa del proyecto"""
+        relative_path = file_path.relative_to(BASE_DIR)
+        return str(relative_path)
+
     def save_acceleration_record(
         self,
         event_id: str,
@@ -321,9 +356,10 @@ class DatabaseBatch:
             pga_z, pga_n, pga_e = parsed_data.pga_values
 
             # Extraer frecuencia de muestreo
-            accel_data = parsed_data.acceleration_metadata
-            sampling_match = re.search(r"(\d+)", accel_data.get("MUESTREO", "35"))
-            sampling_freq = float(sampling_match.group(1)) if sampling_match else 35.0
+            sampling_freq = self._extract_sampling_frequency(parsed_data, file_path)
+
+            # Convertir a ruta relativa del proyecto
+            relative_path = self._get_relative_path(file_path)
 
             record_id = self.db.insert_seismic_acceleration_record(
                 event_id=event_id,
@@ -335,7 +371,7 @@ class DatabaseBatch:
                 pga_east=pga_e,
                 baseline_correction=True,
                 units="cm/s²",
-                file_path=str(file_path),
+                file_path=relative_path,
             )
             return record_id
         except Exception:

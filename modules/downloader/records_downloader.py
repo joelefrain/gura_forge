@@ -72,7 +72,8 @@ class SeismicDownloader:
     def process_catalog(
         self,
         catalog: str,
-        num_events: int = 10,
+        start_date: Optional[str] = None,
+        num_events: Optional[int] = None,
         max_workers: int = 1,
         parallel_stations: int = 5,
     ) -> Dict[str, Any]:
@@ -81,24 +82,41 @@ class SeismicDownloader:
 
         Args:
             catalog: Nombre del catálogo ('igp')
-            num_events: Número máximo de eventos a procesar
+            start_date: Fecha de inicio en formato 'YYYY-MM-DD' (procesa todos desde esa fecha)
+            num_events: Número máximo de eventos a procesar (si no se usa start_date)
             max_workers: Workers para procesar eventos en paralelo
             parallel_stations: Workers para procesar estaciones dentro de cada evento
 
         Returns:
             Diccionario con resultados del procesamiento
         """
-        logger.info(f"Procesando catálogo: {catalog.upper()} ({num_events} eventos)")
+        # Determinar el modo de operación
+        if start_date:
+            logger.info(f"Procesando catálogo: {catalog.upper()} desde {start_date}")
+        elif num_events:
+            logger.info(
+                f"Procesando catálogo: {catalog.upper()} ({num_events} eventos)"
+            )
+        else:
+            return self._build_error_response(
+                "Debe especificar start_date o num_events"
+            )
 
         if catalog not in self.CATALOG_PROCESSORS:
             return self._build_error_response(f"Catálogo no soportado: {catalog}")
 
         # Obtener eventos sin registros
-        events = self.db.get_events_without_records(catalog, num_events)
+        events = self.db.get_events_without_records(
+            catalog=catalog,
+            start_date=start_date,
+            limit=num_events,  # None si se usa start_date
+        )
 
         if not events:
             logger.info(f"No hay eventos nuevos en {catalog.upper()}")
             return self._build_no_events_response(catalog)
+
+        logger.info(f"Encontrados {len(events)} eventos para procesar")
 
         # Iniciar sesión de sincronización
         sync_id = self.db.start_sync_session(
@@ -252,7 +270,7 @@ class SeismicDownloader:
     @log_execution_time
     def process_multiple_catalogs(
         self,
-        catalogs: Dict[str, int],
+        catalogs: Dict[str, str],
         max_workers: int = 1,
         parallel_stations: int = 5,
     ) -> Dict[str, Any]:
@@ -260,7 +278,7 @@ class SeismicDownloader:
         Procesa múltiples catálogos secuencialmente.
 
         Args:
-            catalogs: Diccionario {nombre_catalogo: num_eventos}
+            catalogs: Diccionario {nombre_catalogo: start_date (YYYY-MM-DD)}
             max_workers: Workers para procesar eventos en paralelo
             parallel_stations: Workers para procesar estaciones
 
@@ -270,11 +288,11 @@ class SeismicDownloader:
         logger.info(f"Procesando {len(catalogs)} catálogos")
         results = {}
 
-        for catalog, num_events in catalogs.items():
-            logger.info(f"  - {catalog.upper()}: {num_events} eventos")
+        for catalog, start_date in catalogs.items():
+            logger.info(f"  - {catalog.upper()}: desde {start_date}")
             result = self.process_catalog(
                 catalog=catalog,
-                num_events=num_events,
+                start_date=start_date,
                 max_workers=max_workers,
                 parallel_stations=parallel_stations,
             )

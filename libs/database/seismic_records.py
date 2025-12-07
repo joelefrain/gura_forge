@@ -185,6 +185,7 @@ class SeismicRecordsHandler:
         pga_north: float,
         pga_east: float,
         baseline_correction: bool = True,
+        units: str = "cm/s²",
         file_path: Optional[str] = None,
     ) -> Optional[int]:
         """
@@ -219,7 +220,7 @@ class SeismicRecordsHandler:
                         UPDATE seismic_acceleration_record
                         SET start_time = ?, num_samples = ?, sampling_frequency = ?,
                             pga_vertical = ?, pga_north = ?, pga_east = ?,
-                            baseline_correction = ?, file_path = ?, 
+                            baseline_correction = ?, units = ?, file_path = ?, 
                             downloaded_at = ?, updated_at = ?
                         WHERE id = ?
                     """,
@@ -231,6 +232,7 @@ class SeismicRecordsHandler:
                             pga_north,
                             pga_east,
                             baseline_correction,
+                            units,
                             file_path,
                             datetime.utcnow(),
                             datetime.utcnow(),
@@ -379,7 +381,13 @@ class SeismicRecordsHandler:
                         (catalog, year, start_time, status, created_at, updated_at)
                         VALUES (?, ?, ?, 'running', ?, ?)
                         """,
-                        (catalog, year, start_time, datetime.utcnow(), datetime.utcnow()),
+                        (
+                            catalog,
+                            year,
+                            start_time,
+                            datetime.utcnow(),
+                            datetime.utcnow(),
+                        ),
                     )
                     catalog_id = cursor.lastrowid
 
@@ -393,7 +401,9 @@ class SeismicRecordsHandler:
                     (catalog_id, start_time, datetime.utcnow(), datetime.utcnow()),
                 )
                 record_id = cursor.lastrowid
-                logger.info(f"Inicio de sesión de sincronización (record_id={record_id}, catalog_id={catalog_id})")
+                logger.info(
+                    f"Inicio de sesión de sincronización (record_id={record_id}, catalog_id={catalog_id})"
+                )
                 return record_id
         except Exception as e:
             logger.error(f"Error iniciando sesión de sincronización: {e}")
@@ -471,4 +481,6 @@ class SeismicRecordsHandler:
 
     def close(self):
         """No-op: usamos conexiones por operación a través de DatabaseManager."""
-        logger.debug("SeismicRecordsHandler.close() no necesita cerrar conexiones persistentes")
+        logger.debug(
+            "SeismicRecordsHandler.close() no necesita cerrar conexiones persistentes"
+        )

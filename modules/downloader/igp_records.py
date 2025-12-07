@@ -1,5 +1,6 @@
 import re
 import requests
+import numpy as np
 
 import pandas as pd
 
@@ -74,6 +75,22 @@ class ParsedAccelerationData:
     @property
     def sample_count(self) -> int:
         return len(self.samples)
+
+    @property
+    def pga_values(self) -> Tuple[float, float, float]:
+        """Calcula los valores PGA (Peak Ground Acceleration)"""
+        if not self.samples:
+            return (0.0, 0.0, 0.0)
+
+        # Convertir a array numpy para cálculos eficientes
+        samples_array = np.array(self.samples)
+
+        # Calcular valores absolutos máximos para cada componente
+        pga_z = float(np.max(np.abs(samples_array[:, 0])))
+        pga_n = float(np.max(np.abs(samples_array[:, 1])))
+        pga_e = float(np.max(np.abs(samples_array[:, 2])))
+
+        return (pga_z, pga_n, pga_e)
 
 
 @dataclass
@@ -202,7 +219,7 @@ class AccelerationFileParser:
             return None
 
     def _extract_acceleration_section(self, content: str) -> Optional[Dict[str, str]]:
-        """Extrae sección 3 - REGISTRO con compilación lazy"""
+        """Extrae sección 3 - REGISTRO (solo frecuencia de muestreo)"""
         pattern = re.compile(r"3\.\s*REGISTRO\s", re.IGNORECASE)
         match = pattern.search(content)
         if not match:
@@ -213,13 +230,12 @@ class AccelerationFileParser:
         end_pos = next_section.start() if next_section else len(content)
         section_text = content[start_pos:end_pos]
 
-        # Extrae solo los campos necesarios
+        # Solo extraemos la frecuencia de muestreo
         result = {}
-        for key in ("NÚMERO DE MUESTRAS", "MUESTREO", "PGA"):
-            pattern = self._get_field_pattern(key)
-            match = pattern.search(section_text)
-            if match:
-                result[key] = match.group(1).strip()
+        pattern = self._get_field_pattern("MUESTREO")
+        match = pattern.search(section_text)
+        if match:
+            result["MUESTREO"] = match.group(1).strip()
 
         return result if result else None
 
@@ -296,31 +312,29 @@ class DatabaseBatch:
         parsed_data: ParsedAccelerationData,
         file_path: Path,
     ) -> Optional[int]:
-        """Guarda registro de aceleración"""
+        """Guarda registro de aceleración con cálculos internos"""
         try:
+            # Calcular número de muestras desde los datos
+            num_samples = parsed_data.sample_count
+
+            # Calcular PGA desde los datos
+            pga_z, pga_n, pga_e = parsed_data.pga_values
+
+            # Extraer frecuencia de muestreo
             accel_data = parsed_data.acceleration_metadata
-
-            # Extracciones inline para evitar llamadas
-            pga_parts = accel_data.get("PGA", "0 0 0").split()
-            pga_values = (
-                float(pga_parts[0]) if len(pga_parts) > 0 else 0.0,
-                float(pga_parts[1]) if len(pga_parts) > 1 else 0.0,
-                float(pga_parts[2]) if len(pga_parts) > 2 else 0.0,
-            )
-
-            # Frecuencia de muestreo
-            muestreo_match = re.search(r"(\d+)", accel_data.get("MUESTREO", "100"))
-            sampling_freq = float(muestreo_match.group(1)) if muestreo_match else 100.0
+            sampling_match = re.search(r"(\d+)", accel_data.get("MUESTREO", "35"))
+            sampling_freq = float(sampling_match.group(1)) if sampling_match else 35.0
 
             record_id = self.db.insert_seismic_acceleration_record(
                 event_id=event_id,
                 station_id=station_id,
-                num_samples=int(accel_data.get("NÚMERO DE MUESTRAS", "0")),
+                num_samples=num_samples,
                 sampling_frequency=sampling_freq,
-                pga_vertical=pga_values[0],
-                pga_north=pga_values[1],
-                pga_east=pga_values[2],
+                pga_vertical=pga_z,
+                pga_north=pga_n,
+                pga_east=pga_e,
                 baseline_correction=True,
+                units="cm/s²",
                 file_path=str(file_path),
             )
             return record_id

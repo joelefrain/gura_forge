@@ -215,11 +215,11 @@ class AccelerationFileParser:
 
         # Extrae solo los campos necesarios
         result = {}
-        for field in ("NÚMERO DE MUESTRAS", "MUESTREO", "PGA"):
-            pattern = self._get_field_pattern(field)
+        for key in ("NÚMERO DE MUESTRAS", "MUESTREO", "PGA"):
+            pattern = self._get_field_pattern(key)
             match = pattern.search(section_text)
             if match:
-                result[field] = match.group(1).strip()
+                result[key] = match.group(1).strip()
 
         return result if result else None
 
@@ -597,8 +597,7 @@ class IGPDownloader:
                     try:
                         results.append(future.result())
                     except Exception as e:
-                        # Fallback silencioso
-                        pass
+                        logger.error(f"Error en procesamiento de estación: {e}")
 
             return results
         finally:
